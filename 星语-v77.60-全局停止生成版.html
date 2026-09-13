@@ -1535,6 +1535,11 @@ body.xy-fill-on { overflow:hidden; }
 .wl-sort-btn.active {
   background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600;
 }
+/* ===== v77.57: Emoji 统一渲染（Twemoji 转图 + 短代码解析）===== */
+img.x-emoji {
+  width:1.2em;height:1.2em;vertical-align:-0.2em;margin:0 1px;
+  display:inline-block;object-fit:contain;
+}
 </style>
 </head>
 <body>
@@ -1784,7 +1789,7 @@ body.xy-fill-on { overflow:hidden; }
       <input type="file" id="chatImgInput" accept="image/*" style="display:none">
       <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." autocomplete="off">
       <div class="chat-model-btn" id="chatModelBtn" onclick="toggleModelDropdown()" title="切换模型">模型</div>
-      <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatFromInput()">
+      <button class="chat-send-btn" id="chatSendBtn" onclick="if(xyGenBusy){xyStopGen();return;}sendChatFromInput()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
       <div class="chat-model-dropdown hidden" id="chatModelDropdown"></div>
@@ -2277,6 +2282,17 @@ body.xy-fill-on { overflow:hidden; }
       <div style="width:36px"></div>
     </header>
 
+    <div class="settings-group" style="border:1px solid var(--border);">
+      <div style="padding:14px 16px 10px;">
+        <div class="api-field-label" style="margin-bottom:2px;">API 预设（快照）</div>
+        <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px;">把当前 API 配置（含视觉/生图/定时任务等全部设置）存成快照，可随时一键恢复</div>
+        <div style="display:flex;gap:10px;">
+          <button class="api-btn" id="saveSnapshotBtn" onclick="openSaveSnapshotModal()" style="flex:1;">保存快照</button>
+          <button class="api-btn" id="viewSnapshotsBtn" onclick="openSnapshotListModal()" style="flex:1;">查看预设</button>
+        </div>
+      </div>
+    </div>
+
     <div class="settings-group">
       <div class="api-field" style="margin-bottom:0;padding:16px;">
         <div class="api-field-label">API 地址 (Base URL)</div>
@@ -2425,11 +2441,24 @@ body.xy-fill-on { overflow:hidden; }
       <div class="toggle-sub" style="padding:0 16px 12px;font-size:11px;">AI评论可输出 [GEN_IMG:描述] 标记申请生图，由系统串行队列处理，达到上限自动忽略</div>
     </div>
 
-    <!-- SECTION: global-beauty-settings 全局美化面板 -->
+    <!-- SECTION: global-beauty-settings 全局美化面板（可折叠分区，后续美化设置都放这里） -->
     <div class="settings-group">
+      <div class="settings-row" id="beautyHeader" style="cursor:pointer;" onclick="toggleBeautySection()">
+        <div class="settings-label" style="font-weight:600;">界面美化</div>
+        <div class="settings-value" style="font-size:11px;color:var(--text-tertiary);">背景图 / 表情渲染等</div>
+        <div class="settings-arrow" id="beautyArrow" style="transition:transform .25s;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div id="beautyBody">
       <div class="settings-row" style="cursor:default;">
         <div class="settings-label" style="font-weight:600;">全局美化</div>
         <div class="settings-value" style="font-size:11px;color:var(--text-tertiary);">不覆盖私信/群聊/日常</div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">表情渲染</div>
+          <div class="toggle-sub">开启：模型发来的表情统一转为图片（Twemoji）；关闭：使用系统原生 emoji 字符</div>
+        </div>
+        <label class="toggle-switch"><input type="checkbox" id="emojiRenderToggle" onchange="applyEmojiRenderMode()"><span class="toggle-slider"></span></label>
       </div>
       <div class="settings-row" style="cursor:pointer;" onclick="pickGlobalBgImage()">
         <div class="settings-label">全局背景图</div>
@@ -2461,6 +2490,7 @@ body.xy-fill-on { overflow:hidden; }
       <div class="settings-row" style="cursor:pointer;" id="gbClearRow" onclick="clearGlobalBgImage()">
         <div class="settings-label" style="color:var(--error);">清除全局背景图</div>
       </div>
+      </div>
     </div>
 
     <div class="settings-group">
@@ -2481,6 +2511,16 @@ body.xy-fill-on { overflow:hidden; }
         <div class="settings-value" style="font-size:11px;color:var(--text-tertiary);">8条带图模板</div>
         <div class="settings-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="m9 18 6-6-6-6"/></svg></div>
       </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-label" style="padding:12px 16px 8px;font-weight:600;font-size:14px;">数据管理</div>
+      <div class="toggle-sub" style="padding:0 16px 8px;font-size:11px;">全量备份/恢复星语所有本地数据（帖子、聊天、订单、待办、设置等，含UID进度）。导入会覆盖当前全部数据，建议先导出</div>
+      <div style="display:flex;gap:10px;padding:8px 16px 14px;">
+        <button class="api-btn" onclick="exportAllData()" style="flex:1;">导出全量数据</button>
+        <button class="api-btn" onclick="document.getElementById('importAllInput').click()" style="flex:1;">导入全量数据</button>
+      </div>
+      <input type="file" id="importAllInput" accept=".json,application/json" style="display:none" onchange="importAllData(this)">
     </div>
 
     <div class="settings-group">
@@ -3184,7 +3224,286 @@ body.xy-fill-on { overflow:hidden; }
   <div class="sheet-cancel" onclick="closeCommentSheet()">取消</div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
 <script>
+// ===== v77.57: Emoji 增强（短代码→Unicode→Twemoji 图片）=====
+const EMOJI_SHORTCODES = {
+  // 笑脸与情绪
+  smile:'😊', grinning:'😀', grin:'😁', joy:'😂', rofl:'🤣', laugh:'😆', laughing:'😆', satisfied:'😆',
+  sweat_smile:'😅', smiley:'😃', relaxed:'☺️', wink:'😉', blush:'😊', innocent:'😇', slightly_smiling_face:'🙂',
+  sunglasses:'😎', smirk:'😏', unamused:'😒', relieved:'😌', heart_eyes:'😍', kissing_heart:'😘',
+  kissing:'😗', kissing_smiling_eyes:'😙', kissing_closed_eyes:'😚', stuck_out_tongue:'😛',
+  stuck_out_tongue_winking_eye:'😜', stuck_out_tongue_closed_eyes:'😝', zany_face:'🤪', money_mouth_face:'🤑',
+  nerd_face:'🤓', thinking:'🤔', confused:'😕', slightly_frowning_face:'🙁', neutral_face:'😐',
+  expressionless:'😑', no_mouth:'😶', face_with_raised_eyebrow:'🤨', worried:'😟', frowning_face:'☹️',
+  open_mouth:'😮', hushed:'😯', astonished:'😲', flushed:'😳', pleading_face:'🥺', sleepy:'😪', tired_face:'😫',
+  mask:'😷', dizzy_face:'😵', exploding_head:'🤯', cold_sweat:'😰', sweat:'😓', sob:'😭', crying:'😢',
+  scream:'😱', fearful:'😨', angry:'😠', rage:'😡', pout:'😡', triumph:'😤', disappointed:'😞', pensive:'😔',
+  rolling_eyes:'🙄', eye_roll:'🙄', facepalm:'🤦', shrug:'🤷', pray:'🙏', folded_hands:'🙏', muscle:'💪',
+  flexed_biceps:'💪', ok_hand:'👌', thumbsup:'👍', thumbs_up:'👍', '+1':'👍', thumbsdown:'👎', '-1':'👎',
+  clap:'👏', wave:'👋', hand:'✋', raised_hand:'✋', victory:'✌️', peace:'✌️', crossed_fingers:'🤞',
+  point_up:'☝️', point_left:'👈', point_right:'👉', point_down:'👇', raised_fist:'✊', fist:'✊',
+  punch:'👊', oncoming_fist:'👊', open_hands:'👐', handshake:'🤝', eyes:'👀', see_no_evil:'🙈',
+  hear_no_evil:'🙉', speak_no_evil:'🙊', ghost:'👻', skull:'💀', alien:'👽', robot:'🤖', clown_face:'🤡',
+  poop:'💩', hankey:'💩', fire:'🔥', sparkles:'✨', star:'⭐', star2:'🌟', dizzy:'💫', boom:'💥', collision:'💥',
+  zap:'⚡', rainbow:'🌈', cloud:'☁️', sunny:'☀️', sun_with_face:'🌞', moon:'🌙', full_moon:'🌕',
+  new_moon:'🌑', starry:'🌌', snowflake:'❄️', snowman:'⛄', umbrella:'☔', droplet:'💧', sweat_drops:'💦',
+  ocean:'🌊', volcano:'🌋', mushroom:'🍄', cherry_blossom:'🌸', rose:'🌹', tulip:'🌷', sunflower:'🌻',
+  blossom:'🌼', hibiscus:'🌺', leaves:'🍃', fallen_leaf:'🍂', maple_leaf:'🍁', four_leaf_clover:'🍀',
+  seedling:'🌱', evergreen_tree:'🌲', palm_tree:'🌴', cactus:'🌵', bamboo:'🎋', gift:'🎁', wrapped_gift:'🎁',
+  // 动物
+  dog:'🐶', cat:'🐱', mouse:'🐭', hamster:'🐹', rabbit:'🐰', fox_face:'🦊', bear:'🐻', panda_face:'🐼',
+  koala:'🐨', tiger:'🐯', lion_face:'🦁', cow:'🐮', pig:'🐷', frog:'🐸', monkey_face:'🐵', monkey:'🐒',
+  chicken:'🐔', penguin:'🐧', bird:'🐦', eagle:'🦅', duck:'🦆', owl:'🦉', bat:'🦇', wolf:'🐺',
+  boar:'🐗', horse:'🐴', unicorn:'🦄', bee:'🐝', butterfly:'🦋', snail:'🐌', bug:'🐛', ant:'🐜',
+  spider:'🕷️', scorpion:'🦂', turtle:'🐢', snake:'🐍', dragon:'🐉', crocodile:'🐊', whale:'🐳',
+  dolphin:'🐬', fish:'🐟', tropical_fish:'🐠', blowfish:'🐡', octopus:'🐙', crab:'🦀', shrimp:'🦐',
+  lobster:'🦞', penguin2:'🐧', rooster:'🐓', turkey:'🦃', poodle:'🐩', racehorse:'🏇', fox:'🦊',
+  // 食物
+  apple:'🍎', green_apple:'🍏', pear:'🍐', tangerine:'🍊', orange:'🍊', lemon:'🍋', banana:'🍌',
+  watermelon:'🍉', grapes:'🍇', strawberry:'🍓', melon:'🍈', cherries:'🍒', peach:'🍑', pineapple:'🍍',
+  mango:'🥭', coconut:'🥥', avocado:'🥑', eggplant:'🍆', potato:'🥔', carrot:'🥕', corn:'🌽', hot_pepper:'🌶️',
+  cucumber:'🥒', leafy_green:'🥬', broccoli:'🥦', garlic:'🧄', onion:'🧅', tomato:'🍅', mushroom_:'🍄',
+  bread:'🍞', croissant:'🥐', baguette_bread:'🥖', pretzel:'🥨', bagel:'🥯', pancake:'🥞', waffle:'🧇',
+  cheese:'🧀', meat_on_bone:'🍖', poultry_leg:'🍗', cut_of_meat:'🥩', bacon:'🥓', hamburger:'🍔', fries:'🍟',
+  pizza:'🍕', hotdog:'🌭', sandwich:'🥪', taco:'🌮', burrito:'🌯', stuffed_flatbread:'🥙', falafel:'🧆',
+  egg:'🥚', fried_egg:'🍳', shaved_ice:'🍧', ice_cream:'🍨', icecream:'🍦', doughnut:'🍩', cookie:'🍪',
+  birthday:'🎂', cake:'🍰', cupcake:'🧁', pie:'🥧', chocolate_bar:'🍫', candy:'🍬', lollipop:'🍭',
+  custard:'🍮', honey_pot:'🍯', popcorn:'🍿', salt:'🧂', bento:'🍱', rice_cracker:'🍘', rice_ball:'🍙',
+  rice:'🍚', curry:'🍛', ramen:'🍜', spaghetti:'🍝', sweet_potato:'🍠', oden:'🍢', sushi:'🍣',
+  fried_shrimp:'🍤', fish_cake:'🍥', mochi:'🍡', dumpling:'🥟', fortune_cookie:'🥠', takeout_box:'🥡',
+  crab_:'🦀', chocolate:'🍫', coffee:'☕', tea:'🍵', sake:'🍶', beer:'🍺', beers:'🍻', clinking_glasses:'🥂',
+  wine_glass:'🍷', cocktail:'🍸', tropical_drink:'🍹', champagne:'🍾', baby_bottle:'🍼', milk_glass:'🥛',
+  // 物品与符号
+  phone:'📱', iphone:'📱', computer:'💻', laptop:'💻', desktop_computer:'🖥️', keyboard:'⌨️', printer:'🖨️',
+  mouse_three_button:'🖱️', joystick:'🕹️', video_game:'🎮', game_die:'🎲', dart:'🎯', bowling:'🎳',
+  trophy:'🏆', medal:'🏅', gold_medal:'🥇', silver_medal:'🥈', bronze_medal:'🥉', soccer:'⚽',
+  basketball:'🏀', baseball:'⚾', softball:'🥎', tennis:'🎾', volleyball:'🏐', football:'🏈', rugby_football:'🏉',
+  golf:'⛳', ping_pong:'🏓', badminton:'🏸', ice_hockey:'🏒', field_hockey:'🏑', boxing_glove:'🥊',
+  martial_arts_uniform:'🥋', fishing_pole_and_fish:'🎣', diving_mask:'🤿', running_shirt_with_sash:'🎽',
+  snowboarder:'🏂', skier:'⛷️', sled:'🛷', curling_stone:'🥌', guitar:'🎸', musical_note:'🎵', notes:'🎶',
+  musical_keyboard:'🎹', trumpet:'🎺', violin:'🎻', saxophone:'🎷', flute:'🪈', drum:'🥁', microphone:'🎤',
+  headphones:'🎧', radio:'📻', clapper:'🎬', movie_camera:'🎥', film_frames:'🎞️', cinema:'🎦',
+  video_camera:'📹', camera:'📷', camera_flash:'📸', telescope:'🔭', microscope:'🔬', satellite:'🛰️',
+  bulb:'💡', light_bulb:'💡', flashlight:'🔦', candle:'🕯️', lantern:'🏮', firecracker:'🧨', balloon:'🎈',
+  tada:'🎉', confetti_ball:'🎊', sparkler:'🎇', fireworks:'🎆', gem:'💎', crystal_ball:'🔮',
+  magic_wand:'🪄', book:'📖', books:'📚', notebook:'📓', notebook_with_decorative_cover:'📔', ledger:'📒',
+  closed_book:'📕', green_book:'📗', blue_book:'📘', orange_book:'📙', memo:'📝', pencil:'✏️',
+  pen:'🖊️', fountain_pen:'🖋️', paintbrush:'🖌️', crayon:'🖍️', scissors:'✂️', paperclip:'📎',
+  pushpin:'📌', round_pushpin:'📍', mailbox:'📮', envelope:'✉️', email:'📧', inbox_tray:'📥',
+  outbox_tray:'📤', package:'📦', bell:'🔔', alarm_clock:'⏰', hourglass:'⏳', watch:'⌚', calendar:'📅',
+  date:'📆', clock:'🕐', moneybag:'💰', dollar:'💵', yen:'💴', euro:'💶', pound:'💷', credit_card:'💳',
+  chart:'📈', chart_with_upwards_trend:'📈', bar_chart:'📊', money_with_wings:'💸', receipt:'🧾',
+  bank:'🏦', hospital:'🏥', school:'🏫', house:'🏠', office:'🏢', factory:'🏭', church:'⛪', mosque:'🕌',
+  synagogue:'🕍', fountain:'⛲', tent:'⛺', camping:'🏕️', beach_umbrella:'🏖️', desert_island:'🏝️',
+  car:'🚗', red_car:'🚗', taxi:'🚕', bus:'🚌', trolleybus:'🚎', train:'🚆', railway_car:'🚃', tram:'🚊',
+  bicycle:'🚲', motor_scooter:'🛵', motorcycle:'🏍️', airplane:'✈️', rocket:'🚀', satellite_antenna:'📡',
+  fuelpump:'⛽', anchor:'⚓', ship:'🚢', speedboat:'🚤', rowboat:'🚣', swimmer:'🏊', surfer:'🏄',
+  // 其他常用
+  heart:'❤️', red_heart:'❤️', two_hearts:'💕', heartpulse:'💗', heartbeat:'💓', heart_eyes_cat:'😻',
+  blue_heart:'💙', green_heart:'💚', yellow_heart:'💛', purple_heart:'💜', black_heart:'🖤', orange_heart:'🧡',
+  broken_heart:'💔', cupid:'💘', sparkling_heart:'💖', kiss:'💋', hundred:'💯', '100':'💯', question:'❓',
+  exclamation:'❗', grey_exclamation:'❕', grey_question:'❔', warning:'⚠️', heavy_check_mark:'✔️',
+  heavy_multiplication_x:'✖️', white_check_mark:'✅', negative_squared_cross_mark:'❌', x:'❌',
+  o:'⭕', recycle:'♻️', infi:'♾️', infinity:'♾️', plus:'➕', minus:'➖', divide:'➗', heavy_plus_sign:'➕',
+  arrow_up:'⬆️', arrow_down:'⬇️', arrow_left:'⬅️', arrow_right:'➡️', arrows_clockwise:'🔃',
+  arrows_counterclockwise:'🔄', back:'🔙', end:'🔚', on:'🔛', soon:'🔜', top:'🔝', ok:'🆗', new:'🆕',
+  free:'🆓', up:'🆙', cool:'🆒', sos:'🆘', id:'🆔', ab:'🆎', cl:'🆑', vs:'🆚', red_circle:'🔴',
+  orange_circle:'🟠', yellow_circle:'🟡', green_circle:'🟢', blue_circle:'🔵', purple_circle:'🟣',
+  brown_circle:'🟤', black_circle:'⚫', white_circle:'⚪', red_square:'🟥', green_square:'🟩',
+  blue_square:'🟦', yellow_square:'🟨', purple_square:'🟪', crown:'👑', tophat:'🎩', graduation_cap:'🎓',
+  mortar_board:'🎓', school_satchel:'🎒', briefcase:'💼', handbag:'👜', purse:'👛', wallet:'👝',
+  sunglasses_:'🕶️', necktie:'👔', shirt:'👕', jeans:'👖', dress:'👗', kimono:'👘', bikini:'👙',
+  high_heel:'👠', sandal:'👡', boot:'👢', running:'🏃', runner:'🏃', walking:'🚶', man:'👨', woman:'👩',
+  boy:'👦', girl:'👧', baby:'👶', older_man:'👴', older_woman:'👵', angel:'👼', santa:'🎅',
+  mrs_claus:'🤶', police_officer:'👮', detective:'🕵️', guard:'💂', ninja:'🥷', astronaut:'🧑‍🚀',
+  singer:'🧑‍🎤', dancer:'💃', construction_worker:'👷', mechanic:'🧑‍🔧', farmer:'🧑‍🌾', cook:'🧑‍🍳',
+  student:'🧑‍🎓', teacher:'🧑‍🏫', scientist:'🧑‍🔬', engineer:'🧑‍💻', doctor:'🧑‍⚕️', nurse:'👩‍⚕️',
+  pilot:'🧑‍✈️', firefighter:'🧑‍🚒', judge:'🧑‍⚖️', superhero:'🦸', supervillain:'🦹',
+  mage:'🧙', fairy:'🧚', vampire:'🧛', merperson:'🧜', elf:'🧝', genie:'🧞', zombie:'🧟',
+  person_tipping_hand:'💁', person_bowing:'🙇', person_facepalming:'🤦', person_shrugging:'🤷',
+  person_raising_hand:'🙋', person_frowning:'🙍', person_pouting:'🙎', nail_care:'💅', haircut:'💇',
+  massage:'💆', raising_hand:'🙋', writing_hand:'✍️', nose:'👃', ear:'👂', tongue:'👅', lips:'👄',
+  tooth:'🦷', bone:'🦴', foot:'🦶', leg:'🦵', brain:'🧠', anatomical_heart:'🫀', lungs:'🫁', eye:'👁️',
+  map:'🗺️', world_map:'🗺️', japan:'🗾', compass:'🧭', mountain:'⛰️', volcano_:'🌋', snow_capped_mountain:'🏔️',
+  flower_playing_cards:'🎴', mahjong:'🀄', black_joker:'🃏', slot_machine:'🎰', ticket:'🎫',
+  performing_arts:'🎭', art:'🎨', palette:'🎨', paint:'🎨', framed_picture:'🖼️', pearls:'📿',
+  prayer_beads:'📿', crystal:'🔮', abacus:'🧮', calculator:'🧮', wrench:'🔧', hammer:'🔨', screwdriver:'🪛',
+  nut_and_bolt:'🔩', gear:'⚙️', hammer_and_wrench:'🛠️', pick:'⛏️', axe:'🪓', bomb:'💣', gun:'🔫',
+  high_voltage:'⚡', cable:'🔌', electric_plug:'🔌', battery:'🔋', magnetic:'🧲', test_tube:'🧪',
+  dna:'🧬', microscope_:'🔬', stethoscope:'🩺', x_ray:'🩻', syringe:'💉', pill:'💊', adhesive_bandage:'🩹',
+  crutch:'🩼', drop_of_blood:'🩸', blood_drop:'🩸', chair:'🪑', toilet:'🚽', shower:'🚿', bathtub:'🛁',
+  bed:'🛏️', couch_and_lamp:'🛋️', door:'🚪', window:'🪟', key:'🔑', old_key:'🗝️', lock:'🔒',
+  closed_lock_with_key:'🔐', unlocked:'🔓', lock_with_ink_pen:'🔏', safety_pin:'🧷', teddy_bear:'🧸',
+  jigsaw:'🧩', nesting_dolls:'🪆', chess_pawn:'♟️', ice_skate:'⛸️', roller_skate:'🛼', skateboard:'🛹',
+  kick_scooter:'🛴', motorway:'🛣️', railway_track:'🛤️', bridge_at_night:'🌉', ferris_wheel:'🎡',
+  roller_coaster:'🎢', carousel_horse:'🎠', circus_tent:'🎪', ballet_shoes:'🩰', golfing:'🏌️',
+  person_golfing:'🏌️', horse_racing:'🏇', person_lifting_weights:'🏋️', weight_lifter:'🏋️',
+  person_biking:'🚴', person_mountain_biking:'🚵', person_doing_cartwheel:'🤸', juggling:'🤹',
+  person_juggling:'🤹', person_playing_water_polo:'🤽', person_playing_handball:'🤾',
+  fencing:'🤺', person_running:'🏃', person_walking:'🚶', person_standing:'🧍', person_kneeling:'🧎',
+  person_with_probing_cane:'🧑‍🦯', person_in_motorized_wheelchair:'🧑‍🦼', person_in_manual_wheelchair:'🧑‍🦽',
+  people_hugging:'🫂', love_letter:'💌', bride_with_veil:'👰', groom:'🤵', family:'👪',
+  couple:'💑', kiss_couple:'💏', two_men_holding_hands:'👬', two_women_holding_hands:'👭',
+  man_and_woman_holding_hands:'👫', footprints:'👣', tracks:'👣', input:'🔤', abc:'🔤',
+  capital_abcd:'🔠', abcd:'🔡', symbols:'🔣', musical_score:'🎼', headphones_:'🎧', sound:'🔉',
+  loud_sound:'🔊', mute:'🔇', speaker:'🔊', loudspeaker:'📢', mega:'📣', postal_horn:'📯',
+  bell_:'🔔', no_bell:'🔕', timer_clock:'⏲️', mantelpiece_clock:'🕰️', stopwatch:'⏱️',
+  alarm_clock_:'⏰', hourglass_flowing_sand:'⏳', hourglass_done:'⌛', thermometer:'🌡️',
+  sun_behind_rain_cloud:'🌦️', sun_behind_small_cloud:'🌤️', sun_behind_large_cloud:'🌥️',
+  cloud_with_rain:'🌧️', cloud_with_lightning_and_rain:'⛈️', cloud_with_lightning:'🌩️',
+  cloud_with_snow:'🌨️', fog:'🌫️', wind_face:'🌬️', tornado:'🌪️', cyclone:'🌀', fire_engine:'🚒',
+  ambulance:'🚑', police_car:'🚓', police_car_light:'🚨', rotating_light:'🚨', oncoming_automobile:'🚘',
+  oncoming_taxi:'🚖', oncoming_bus:'🚍', articulated_lorry:'🚚', truck:'🚚', tractor:'🚜',
+  auto_rickshaw:'🛺', scooter:'🛵', monorail:'🚝', mountain_railway:'🚞', suspension_railway:'🚟',
+  steam_locomotive:'🚂', locomotive:'🚂', light_rail:'🚈', station:'🚉', metro:'🚇', minibus:'🚐',
+  school_bus:'🚌', wedding:'💒', love_hotel:'🏩', hospital_:'🏥', european_castle:'🏰', japanese_castle:'🏯',
+  statue_of_liberty:'🗽', tokyo_tower:'🗼', eiffel_tower:'🗼', moai:'🗿', rock:'🪨', wood:'🪵',
+  hut:'🛖', house_buildings:'🏘️', derelict_house:'🏚️', classical_building:'🏛️', stadium:'🏟️',
+  arena:'🏟️', rice_scene:'🎑', night_with_stars:'🌃', cityscape:'🏙️', sunrise_over_mountains:'🌄',
+  sunrise:'🌅', city_sunset:'🌇', city_dusk:'🌆', sunset:'🌇', full_moon_with_face:'🌝',
+  last_quarter_moon_with_face:'🌜', first_quarter_moon_with_face:'🌛', waxing_crescent_moon:'🌒',
+  waning_crescent_moon:'🌘', waxing_gibbous_moon:'🌔', waning_gibbous_moon:'🌖', crescent_moon:'🌙',
+  globe_with_meridians:'🌐', globe_with_americas:'🌎', earth_americas:'🌎', globe_with_asia:'🌏',
+  earth_asia:'🌏', globe_with_europe:'🌍', earth_africa:'🌍', shooting_star:'🌠', milky_way:'🌌',
+  movie_camera_:'🎥', projector:'📽️', dvd:'📀', cd:'💿', floppy_disk:'💾', computer_disk:'💾',
+  minidisc:'💽', vhs:'📼', camera_with_flash:'📸', phone_receiver:'☎️', telephone:'☎️',
+  telephone_receiver:'📞', pager:'📟', fax:'📠', battery_:'🔋', electric_plug_:'🔌', card_index:'📇',
+  card_index_dividers:'🗂️', file_folder:'📁', open_file_folder:'📂', card_file_box:'🗃️',
+  calendar_spiral:'🗓️', calendar:'📅', tear_off_calendar:'📆', notepad_spiral:'🗒️', scroll:'📜',
+  page_facing_up:'📄', page_with_curl:'📃', newspaper:'📰', newspaper_roll:'🗞️', bookmark_tabs:'📑',
+  bookmark:'🔖', label:'🏷️', money_mouth:'🤑', currency_exchange:'💱', heavy_dollar_sign:'💲',
+  mahjong_red_dragon:'🀄', playing_card_black_joker:'🃏', flower_playing_cards_:'🎴'
+};
+let __emojiBusy = false;
+let __emojiMo = null;
+function initEmojiEnhancer() {
+  if (typeof twemoji === 'undefined') return;
+  if (__emojiMo) return;
+  // 设置里关闭了表情渲染则不启动（原生系统 emoji 字符模式）
+  if (typeof config !== 'undefined' && config.emojiRender === false) return;
+  // 初始全量处理：页面加载时已渲染好的内容（observer 只监听之后的变化）
+  __emojiBusy = true;
+  try {
+    twemoji.parse(document.body, { ext: '.png', className: 'x-emoji', base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/' });
+  } catch(e) {} finally { __emojiBusy = false; }
+  __emojiMo = new MutationObserver(function(muts) {
+    if (__emojiBusy) return;
+    if (typeof config !== 'undefined' && config.emojiRender === false) return;
+    // 累积队列：多次 mutation 批次合并处理；_scheduled 保证同时只有一个定时器在飞，
+    // 避免页面高频 mutation 时 clearTimeout 无限重置导致队列永远不执行
+    const q = __emojiMo._q || (__emojiMo._q = []);
+    for (let mi = 0; mi < muts.length; mi++) {
+      const m = muts[mi];
+      if (!m.addedNodes || !m.addedNodes.length) continue;
+      for (let i = 0; i < m.addedNodes.length; i++) {
+        const n = m.addedNodes[i];
+        if (n.nodeType === 1) q.push(n);
+        else if (n.nodeType === 3 && n.parentNode && n.parentNode.nodeType === 1) q.push(n.parentNode);
+      }
+    }
+    if (!q.length || __emojiMo._scheduled) return;
+    __emojiMo._scheduled = true;
+    setTimeout(function() {
+      __emojiMo._scheduled = false;
+      __emojiBusy = true;
+      try {
+        const items = __emojiMo._q;
+        __emojiMo._q = [];
+        // 去重（同一节点可能被多次收集）
+        const seen = new Set();
+        for (let i = 0; i < items.length; i++) {
+          const root = items[i];
+          if (!root || seen.has(root)) continue;
+          seen.add(root);
+          if (!document.contains(root)) continue;
+          // 输入框 / 按钮等控件内部不处理，避免干扰交互控件
+          if (root.nodeType === 1 && root.closest && root.closest('input,textarea,select,option,button,a')) continue;
+          // 短代码 → Unicode emoji（文本节点层，双保险）
+          const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          const tn = [];
+          while (w.nextNode()) tn.push(w.currentNode);
+          for (let j = 0; j < tn.length; j++) {
+            const t = tn[j];
+            if (t.parentNode && t.parentNode.closest && t.parentNode.closest('input,textarea,select,option,button,a')) continue;
+            const v = t.nodeValue;
+            if (v && v.indexOf(':') >= 0 && /:([a-zA-Z0-9_+\-]+):/.test(v)) {
+              const nv = v.replace(/:([a-zA-Z0-9_+\-]+):/g, function(mm, code) {
+                const e = EMOJI_SHORTCODES[code.toLowerCase()];
+                return e ? e : mm;
+              });
+              if (nv !== v) t.nodeValue = nv;
+            }
+          }
+          // Twemoji：Unicode emoji → 统一 SVG 图片
+          twemoji.parse(root, { ext: '.png', className: 'x-emoji', base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/' });
+        }
+      } catch(e) {} finally {
+        __emojiBusy = false;
+        // 处理期间新排队的 mutation 会在 busy=false 后自动再次触发回调
+      }
+    }, 60);
+  });
+  __emojiMo.observe(document.body, { childList: true, subtree: true });
+  __emojiMo._running = true;
+}
+// ===== v77.58: 表情渲染开关（设置页-界面美化分区） =====
+// 切换：开启=Twemoji 图片表情；关闭=还原为系统原生 emoji 字符并暂停自动转换
+function applyEmojiRenderMode() {
+  if (typeof config === 'undefined') return;
+  const on = document.getElementById('emojiRenderToggle') ? document.getElementById('emojiRenderToggle').checked : (config.emojiRender !== false);
+  config.emojiRender = on;
+  if (typeof twemoji === 'undefined') return;
+  if (on) {
+    // 开启：恢复 observer 并全量转换现有内容
+    if (__emojiMo && !__emojiMo._running) {
+      try { __emojiMo.observe(document.body, { childList: true, subtree: true }); __emojiMo._running = true; } catch(e) {}
+    }
+    __emojiBusy = true;
+    try {
+      twemoji.parse(document.body, { ext: '.png', className: 'x-emoji', base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/' });
+    } catch(e) {} finally { __emojiBusy = false; }
+  } else {
+    // 关闭：断开 observer，并把已转换的 img 还原为文本字符
+    if (__emojiMo && __emojiMo._running) {
+      try { __emojiMo.disconnect(); } catch(e) {}
+      __emojiMo._running = false;
+      __emojiMo._q = [];
+    }
+    const imgs = document.querySelectorAll('img.x-emoji');
+    for (let i = imgs.length - 1; i >= 0; i--) {
+      const img = imgs[i];
+      if (img.parentNode) {
+        const t = document.createTextNode(img.getAttribute('alt') || '');
+        img.parentNode.replaceChild(t, img);
+      }
+    }
+  }
+}
+// 折叠/展开"界面美化"分区（状态存 localStorage，刷新后保持）
+function toggleBeautySection() {
+  const body = document.getElementById('beautyBody');
+  const arrow = document.getElementById('beautyArrow');
+  if (!body) return;
+  const collapsed = body.classList.toggle('hidden');
+  try { localStorage.setItem('xingyu_beauty_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+  if (arrow) arrow.style.transform = collapsed ? 'rotate(90deg)' : 'rotate(0deg)';
+}
+function restoreBeautySection() {
+  const body = document.getElementById('beautyBody');
+  const arrow = document.getElementById('beautyArrow');
+  if (!body) return;
+  let collapsed = false;
+  try { collapsed = localStorage.getItem('xingyu_beauty_collapsed') === '1'; } catch(e) {}
+  body.classList.toggle('hidden', collapsed);
+  if (arrow) arrow.style.transform = collapsed ? 'rotate(90deg)' : 'rotate(0deg)';
+}
+// 页面就绪后启动（Twemoji 未加载则跳过，短代码替换仍由 escapeHtml 兜底）
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initEmojiEnhancer);
+} else {
+  setTimeout(initEmojiEnhancer, 0);
+}
 // ===== Data =====
 const IMAGES = {
   cat: 'https://aka.doubaocdn.com/s/uYrtMAPN8o',
@@ -4511,7 +4830,7 @@ function renderChat() {
         '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-tertiary)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>' +
         '</div>';
     } else {
-      bubbleContent = (m.text ? escapeHtml(m.text) : '') + (m.image ? '<img src="' + m.image + '">' : '');
+      bubbleContent = (m.text ? escapeHtml(m.text) : '') + (m.edited ? '<span style="font-size:11px;color:var(--text-tertiary);margin-left:4px;vertical-align:middle;">已编辑</span>' : '') + (m.image ? '<img src="' + m.image + '">' : '');
     }
     // 操作按钮（仅非加载中消息显示）
     let actionsHtml = '';
@@ -4521,6 +4840,7 @@ function renderChat() {
         '<button title="复制" onclick="copyChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' +
         '<button title="引用" onclick="quoteChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>' +
         '<button title="分享" onclick="shareChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>' +
+        (isMe ? '<button title="重新编辑" onclick="editResendChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>' : '') +
         (isAI ? '<button title="重说" onclick="regenerateChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>' : '') +
         (isAI ? '<button title="追加" onclick="appendChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>' : '') +
       '</div>';
@@ -4540,10 +4860,13 @@ function renderChat() {
     const isSelected = isMultiSelectMode && multiSelectedMsgIds.includes(m.id);
     const multiCheckbox = isMultiSelectMode ? '<div onclick="event.stopPropagation();toggleMultiSelect(\'' + m.id + '\')" style="width:22px;height:22px;border-radius:50%;border:2px solid ' + (isSelected ? 'var(--accent)' : 'var(--border)') + ';background:' + (isSelected ? 'var(--accent)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;align-self:center;">' + (isSelected ? '<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\"><polyline points=\"20 6 9 17 4 12\"/></svg>' : '') + '</div>' : '';
     const msgClickAttr = isMultiSelectMode ? ' onclick="toggleMultiSelect(\'' + m.id + '\')"' : (m.type === 'post_card' ? ' onclick="handlePostCardClick(\'' + m.id + '\')"' : '');
+    // v77.55：用户普通文本消息支持长按/右键弹菜单（重新编辑等）
+    const isPlainEditable = isMe && !m.typing && !m.streaming && m.type !== 'post_card' && m.type !== 'redpacket' && m.type !== 'profile_card';
+    const lpAttr = (isMultiSelectMode || !isPlainEditable) ? '' : ' oncontextmenu="event.preventDefault();event.stopPropagation();chatMsgLpStart(event,\'' + m.id + '\');return false;" ontouchstart="chatMsgLpStart(event,\'' + m.id + '\')" ontouchmove="chatMsgLpMove(event)" ontouchend="chatMsgLpEnd()" ontouchcancel="chatMsgLpEnd()"';
     const msgSelectedStyle = isSelected ? 'opacity:0.55;' : '';
     // 多选模式下隐藏actions按钮
     const effectiveActions = isMultiSelectMode ? '' : actionsHtml;
-    html += '<div class="chat-msg ' + (isMe ? 'me' : 'ai') + '" data-msg-id="' + m.id + '"' + msgClickAttr + ' style="max-width:' + maxWidth + ';gap:' + (cfg.bubbleGap||14) + 'px;' + msgSelectedStyle + '">' +
+    html += '<div class="chat-msg ' + (isMe ? 'me' : 'ai') + '" data-msg-id="' + m.id + '"' + msgClickAttr + lpAttr + ' style="max-width:' + maxWidth + ';gap:' + (cfg.bubbleGap||14) + 'px;' + msgSelectedStyle + '">' +
       multiCheckbox +
       '<div class="chat-msg-avatar" style="background:' + color + ';width:' + avatarSize + 'px;height:' + avatarSize + 'px;border-radius:' + (cfg.avatarRadius||50) + '%;' + avatarStyle + '" onclick="' + avatarClick + '">' + (avatar ? '<img src="' + avatar + '" onerror="this.style.display=\'none\';this.parentNode.textContent=\'' + (isMe ? getUserName().charAt(0) : char.name.charAt(0)) + '\'">' : (isMe ? getUserName().charAt(0) : char.name.charAt(0))) + '</div>' +
       '<div>' +
@@ -5161,6 +5484,10 @@ function showMsgActionMenu(msgId) {
   items.push({ label: '引用', action: 'quoteChatMsg(\'' + msgId + '\')' });
   items.push({ label: '分享', action: 'closeMsgActionMenu();shareChatMsg(\'' + msgId + '\')', noClose: true });
   items.push({ label: '多选', action: 'closeMsgActionMenu();enterMultiSelect();toggleMultiSelect(\'' + msgId + '\')' });
+  if (!isAI) {
+    // v77.55：用户消息支持重新编辑（截断重发）——noClose：编辑弹窗接管同款弹窗，不能先关
+    items.push({ label: '重新编辑', action: "editResendChatMsg('" + msg.id + "')", noClose: true });
+  }
   if (isAI) {
     items.push({ label: '重说', action: 'regenerateChatMsg(\'' + msgId + '\')' });
     items.push({ label: '追加一句', action: 'appendChatMsg(\'' + msgId + '\')' });
@@ -5259,6 +5586,10 @@ function showOrderMsgMenu(msgId) {
   const isAI = msg.from !== 'me';
   let items = [];
   items.push({ label: '复制', action: 'copyOrderMsg(\'' + msgId + '\')' });
+  if (!isAI) {
+    // v77.55：用户消息支持重新编辑（截断重发）——noClose：编辑弹窗接管同款弹窗，不能先关
+    items.push({ label: '重新编辑', action: 'editResendOrderMsg(\'' + msgId + '\')', noClose: true });
+  }
   if (isAI) {
     items.push({ label: '重说', action: 'regenerateOrderMsg(\'' + msgId + '\')' });
     items.push({ label: '继续说', action: 'appendOrderMsg(\'' + msgId + '\')' });
@@ -5266,7 +5597,8 @@ function showOrderMsgMenu(msgId) {
   items.push({ label: '删除', action: 'deleteOrderMsg(\'' + msgId + '\')', danger: true });
   let html = '<div style="padding:8px;">';
   items.forEach(function(it){
-    html += '<div class="longpress-item' + (it.danger ? ' danger' : '') + '" onclick="' + it.action + ';closeMsgActionMenu()">' + it.label + '</div>';
+    const clickAction = it.noClose ? it.action : (it.action + ';closeMsgActionMenu()');
+    html += '<div class="longpress-item' + (it.danger ? ' danger' : '') + '" onclick="' + clickAction + '">' + it.label + '</div>';
   });
   html += '</div>';
   // v77.40：用订单专用弹窗（z-index 高于订单遮罩）
@@ -5440,6 +5772,10 @@ function showCourtMsgMenu(msgId) {
   const isAI = msg.from !== 'me';
   let items = [];
   items.push({ label: '复制', action: 'copyCourtMsg(\'' + msgId + '\')' });
+  if (!isAI) {
+    // v77.55：用户消息支持重新编辑（截断重发）——noClose：编辑弹窗接管同款弹窗，不能先关
+    items.push({ label: '重新编辑', action: 'editResendCourtMsg(\'' + msgId + '\')', noClose: true });
+  }
   if (isAI) {
     items.push({ label: '重说', action: 'regenerateCourtMsg(\'' + msgId + '\')' });
     items.push({ label: '继续说', action: 'appendCourtMsg(\'' + msgId + '\')' });
@@ -5447,7 +5783,8 @@ function showCourtMsgMenu(msgId) {
   items.push({ label: '删除', action: 'deleteCourtMsg(\'' + msgId + '\')', danger: true });
   let html = '<div style="padding:8px;">';
   items.forEach(function(it){
-    html += '<div class="longpress-item' + (it.danger ? ' danger' : '') + '" onclick="' + it.action + ';closeMsgActionMenu()">' + it.label + '</div>';
+    const clickAction = it.noClose ? it.action : (it.action + ';closeMsgActionMenu()');
+    html += '<div class="longpress-item' + (it.danger ? ' danger' : '') + '" onclick="' + clickAction + '">' + it.label + '</div>';
   });
   html += '</div>';
   // v77.40：用订单专用弹窗（z-index 高于订单遮罩）
@@ -5490,6 +5827,97 @@ function deleteCourtMsg(msgId) {
   saveOrders();
   renderCourt();
   showToast('已删除');
+}
+// ===== v77.55：用户消息重新编辑（重新发送）=====
+// 通用编辑弹窗：预填原消息文本，确认后回调 newText
+let _editResendCallback = null;
+function openEditResendModal(msgText, onConfirm) {
+  _editResendCallback = onConfirm;
+  const safeText = escapeHtml(String(msgText || ''));
+  const html = '<div style="padding:10px 8px 0;">' +
+    '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5;">编辑这条消息，保存后将<b>从这句话重新开启对话</b>（它之后的消息会被移除，AI将基于新内容重新回复）</div>' +
+    '<textarea id="editResendInput" rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:14px;font-family:inherit;resize:none;outline:none;line-height:1.5;">' + safeText + '</textarea>' +
+    '</div>' +
+    '<div style="padding:12px 8px 8px;display:flex;gap:10px;">' +
+      '<button onclick="closeMsgActionMenu()" style="flex:1;padding:10px 0;border:none;border-radius:12px;background:var(--bg-secondary);color:var(--text-secondary);font-size:14px;cursor:pointer;font-family:inherit;">取消</button>' +
+      '<button onclick="confirmEditResend()" style="flex:1;padding:10px 0;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">重新发送</button>' +
+    '</div>';
+  _showOrderModal('重新编辑', html);
+  setTimeout(function(){ const el = document.getElementById('editResendInput'); if (el) el.focus(); }, 150);
+}
+function confirmEditResend() {
+  const el = document.getElementById('editResendInput');
+  const newText = (el && el.value.trim()) || '';
+  closeMsgActionMenu();
+  if (!newText) { showToast('内容不能为空'); return; }
+  if (_editResendCallback) { const cb = _editResendCallback; _editResendCallback = null; cb(newText); }
+}
+// 私信/群聊：用户消息重新编辑（截断到该条→替换文本→重新生成）
+function editResendChatMsg(msgId) {
+  if (currentGroupId) {
+    const g = getGroupChat(currentGroupId);
+    if (!g) return;
+    const msg = (g.messages || []).find(m => m.id === msgId);
+    if (!msg || msg.from !== 'me') return;
+    openEditResendModal(msg.text || '', function(newText) {
+      const idx = (g.messages || []).findIndex(m => m.id === msgId);
+      if (idx < 0) return;
+      // 截断：保留到 idx（含），删除其后的所有消息
+      g.messages = g.messages.slice(0, idx + 1);
+      g.messages[idx] = Object.assign({}, g.messages[idx], { text: newText, time: Date.now(), edited: true });
+      saveGroupChats();
+      renderChat();
+      generateGroupChatReply(currentGroupId, [], '');
+    });
+    return;
+  }
+  const session = chatSessions[currentChatId] || [];
+  const msg = session.find(m => m.id === msgId);
+  if (!msg || msg.from !== 'me') return;
+  openEditResendModal(msg.text || '', function(newText) {
+    const idx = session.findIndex(m => m.id === msgId);
+    if (idx < 0) return;
+    // 截断：保留到 idx（含），删除其后的所有消息
+    chatSessions[currentChatId] = session.slice(0, idx + 1);
+    chatSessions[currentChatId][idx] = Object.assign({}, chatSessions[currentChatId][idx], { text: newText, time: Date.now(), edited: true });
+    saveChatSessions();
+    renderChat();
+    generateChatReply(currentChatId);
+  });
+}
+// 订单/被服务：用户消息重新编辑（截断到该条→替换文本→重新生成）
+function editResendOrderMsg(msgId) {
+  const order = _getCurrentOrder();
+  if (!order) return;
+  const msg = (order.messages || []).find(m => String(m.id) === String(msgId));
+  if (!msg || msg.from !== 'me') return;
+  openEditResendModal(msg.text || '', function(newText) {
+    const idx = (order.messages || []).findIndex(m => String(m.id) === String(msgId));
+    if (idx < 0) return;
+    order.messages = order.messages.slice(0, idx + 1);
+    order.messages[idx] = Object.assign({}, order.messages[idx], { text: newText, time: Date.now(), edited: true });
+    saveOrders();
+    if (currentOrderId) renderOrderChat();
+    else if (currentServeId) renderServeChat();
+    if (currentOrderId) generateOrderReply(order, [], 0);
+    else if (currentServeId) generateServeReply(order, [], 0);
+  });
+}
+// 小法庭：用户消息重新编辑（截断到该条→替换文本→重新生成）
+function editResendCourtMsg(msgId) {
+  const order = _getCurrentCourtOrder();
+  if (!order) return;
+  const msg = (order.courtMessages || []).find(m => String(m.id) === String(msgId));
+  if (!msg || msg.from !== 'me') return;
+  openEditResendModal(msg.text || '', function(newText) {
+    const idx = (order.courtMessages || []).findIndex(m => String(m.id) === String(msgId));
+    if (idx < 0) return;
+    order.courtMessages = order.courtMessages.slice(0, idx + 1);
+    order.courtMessages[idx] = Object.assign({}, order.courtMessages[idx], { text: newText, time: Date.now(), edited: true });
+    saveOrders();
+    renderCourt();
+    generateCourtReply(order);
+  });
 }
 // 订单清空聊天
 function clearOrderChat() {
@@ -5772,6 +6200,22 @@ function initLongpressListener() {
 function showLongpressMenu() {
   document.getElementById('longpressOverlay').classList.remove('hidden');
 }
+// ===== v77.55：用户消息气泡长按定时器（500ms 弹操作菜单）=====
+let _chatLpTimer = null;
+let _chatLpMoved = false;
+function chatMsgLpStart(e, msgId) {
+  if (isMultiSelectMode) return;
+  _chatLpMoved = false;
+  if (_chatLpTimer) clearTimeout(_chatLpTimer);
+  _chatLpTimer = setTimeout(function() {
+    if (!_chatLpMoved) {
+      try { e.preventDefault(); } catch(err) {}
+      showMsgActionMenu(msgId);
+    }
+  }, 500);
+}
+function chatMsgLpMove() { _chatLpMoved = true; if (_chatLpTimer) { clearTimeout(_chatLpTimer); _chatLpTimer = null; } }
+function chatMsgLpEnd() { if (_chatLpTimer) { clearTimeout(_chatLpTimer); _chatLpTimer = null; } }
 function closeLongpressMenu() {
   document.getElementById('longpressOverlay').classList.add('hidden');
 }
@@ -6327,6 +6771,57 @@ function fetchSingleWork(workId, workType) {
 }
 
 // 使用搭子配置调用chatCompletion（支持独立上游）
+// ===== v77.60 全局生成控制：停止生成（全场景统一） =====
+let xyGenCtrl = null;
+let xyGenScene = '';
+let xyGenBusy = false;
+
+function xyBeginGen(scene) {
+  xyEndGen();
+  xyGenCtrl = new AbortController();
+  xyGenScene = scene;
+  xyGenBusy = true;
+  xyRefreshGenButtons();
+}
+function xyEndGen() {
+  xyGenCtrl = null;
+  xyGenScene = '';
+  xyGenBusy = false;
+  xyRefreshGenButtons();
+}
+function xyStopGen() {
+  if (xyGenCtrl) { try { xyGenCtrl.abort(); } catch(e){} }
+  xyEndGen();
+}
+function xyIsAbort(e) {
+  return !!(e && (e.name === 'AbortError' || String(e.message || '').toLowerCase().indexOf('abort') !== -1));
+}
+function xyGenSignal() { return xyGenCtrl ? xyGenCtrl.signal : undefined; }
+function xyRefreshGenButtons() {
+  // 私信/群聊共用发送按钮：生成中变停止方块
+  const chatBtn = document.getElementById('chatSendBtn');
+  if (chatBtn) {
+    if (xyGenBusy) {
+      chatBtn.innerHTML = '<span style="display:block;width:12px;height:12px;background:currentColor;border-radius:2px;margin:auto;"></span>';
+      chatBtn.setAttribute('aria-label','停止生成');
+    } else {
+      chatBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+      chatBtn.setAttribute('aria-label','发送');
+    }
+  }
+  // 订单聊天
+  const orderBtn = document.getElementById('orderChatSendBtn');
+  if (orderBtn) orderBtn.textContent = (xyGenBusy && xyGenScene === 'order') ? '停止' : '发送';
+  // 服务聊天
+  const serveBtn = document.getElementById('serveChatSendBtn');
+  if (serveBtn) serveBtn.textContent = (xyGenBusy && xyGenScene === 'serve') ? '停止' : '发送';
+  // AI 助手 + 历史续聊（共用 assistant 场景）
+  const aiBtn = document.getElementById('xyAiSendBtn');
+  if (aiBtn) aiBtn.textContent = (xyGenBusy && xyGenScene === 'assistant') ? '停止' : '发送';
+  const histBtn = document.getElementById('xyHistSendBtn');
+  if (histBtn) histBtn.textContent = (xyGenBusy && xyGenScene === 'assistant') ? '停止' : '发送';
+}
+
 async function chatCompletionWithChar(char, messages, opts) {
   opts = opts || {};
   const base = normalizeBaseUrl(getEffectiveBaseUrl(char));
@@ -6334,18 +6829,25 @@ async function chatCompletionWithChar(char, messages, opts) {
   const model = getEffectiveModel(char);
   if (!base) throw new Error('请先配置 API 地址');
   if (!model) throw new Error('请先配置模型名称');
-  const res = await fetch(base + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (key || '') },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      temperature: opts.temperature != null ? opts.temperature : 0.8,
-      max_tokens: opts.maxTokens || 400,
-      stream: false,
-      thinking: { type: 'disabled' }
-    })
-  });
+  let res;
+  try {
+    res = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (key || '') },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        temperature: opts.temperature != null ? opts.temperature : 0.8,
+        max_tokens: opts.maxTokens || 400,
+        stream: false,
+        thinking: { type: 'disabled' }
+      }),
+      signal: xyGenSignal()
+    });
+  } catch(e) {
+    if (xyIsAbort(e)) return '';
+    throw e;
+  }
   if (!res.ok) {
     let errText = '';
     try { errText = await res.text(); } catch(e) {}
@@ -6377,17 +6879,24 @@ async function streamChatCompletionWithChar(char, messages, opts, onChunk) {
   const model = getEffectiveModel(char);
   if (!base) throw new Error('请先配置 API 地址');
   if (!model) throw new Error('请先配置模型名称');
-  const res = await fetch(base + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (key || '') },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      temperature: opts.temperature != null ? opts.temperature : 0.8,
-      max_tokens: opts.maxTokens || 400,
-      stream: true
-    })
-  });
+  let res;
+  try {
+    res = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (key || '') },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        temperature: opts.temperature != null ? opts.temperature : 0.8,
+        max_tokens: opts.maxTokens || 400,
+        stream: true
+      }),
+      signal: xyGenSignal()
+    });
+  } catch(e) {
+    if (xyIsAbort(e)) return fullText || '';
+    throw e;
+  }
   if (!res.ok) {
     let errText = '';
     try { errText = await res.text(); } catch(e) {}
@@ -6398,7 +6907,14 @@ async function streamChatCompletionWithChar(char, messages, opts, onChunk) {
   let buffer = '';
   let fullText = '';
   while (true) {
-    const { done, value } = await reader.read();
+    let chunk;
+    try {
+      chunk = await reader.read();
+    } catch(e) {
+      if (xyIsAbort(e)) break;
+      throw e;
+    }
+    const { done, value } = chunk;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
@@ -6613,6 +7129,7 @@ function buildMultimodalContent(text, imageUrls) {
 async function generateChatReply(charId, images, userText, _roundCount) {
   const char = getCharacter(charId);
   if (!char) return;
+  xyBeginGen('chat');
   _roundCount = _roundCount || 0; // 本轮已输出的AI消息数（循环调度用）
   // 显示顶部"对方正在输入"状态栏
   const typingStatus = document.getElementById('chatTypingStatus');
@@ -6863,12 +7380,18 @@ async function generateChatReply(charId, images, userText, _roundCount) {
       const sIdx = session.findIndex(m => m.id === streamMsgId);
       if (sIdx >= 0) session.splice(sIdx, 1);
     } catch(streamErr) {
-      debugLog('流式失败，降级为普通: ' + streamErr.message);
-      // 清理streaming消息
-      const sIdx = session.findIndex(m => m.streaming);
-      if (sIdx >= 0) session.splice(sIdx, 1);
-      // 降级为普通调用
-      reply = await chatCompletionWithChar(char, messages, { temperature: 0.8, maxTokens: 400 });
+      if (xyIsAbort(streamErr)) {
+        // 用户主动停止：保留已流出的内容，不再降级重试
+        const sIdx = session.findIndex(m => m.streaming);
+        if (sIdx >= 0) session.splice(sIdx, 1);
+      } else {
+        debugLog('流式失败，降级为普通: ' + streamErr.message);
+        // 清理streaming消息
+        const sIdx = session.findIndex(m => m.streaming);
+        if (sIdx >= 0) session.splice(sIdx, 1);
+        // 降级为普通调用
+        reply = await chatCompletionWithChar(char, messages, { temperature: 0.8, maxTokens: 400 });
+      }
     }
     // 处理生图指令
     let imageUrl = null;
@@ -7270,6 +7793,7 @@ async function generateChatReply(charId, images, userText, _roundCount) {
       if (typingStatus) typingStatus.style.display = 'none';
       saveChatSessions();
     } catch(finErr) { debugLog('finally清理失败: ' + finErr.message); }
+    xyEndGen();
   }
 }
 
@@ -7390,6 +7914,8 @@ async function processGroupImgMarkers(gid, memberUid, replyText) {
 async function generateGroupChatReply(gid, images, userText) {
   const g = getGroupChat(gid);
   if (!g) return;
+  xyBeginGen('group');
+  let gAborted = false;
   const settings = g.settings || {};
   const globalMin = settings.globalMinSen || 1;
   const globalMax = settings.globalMaxSen || 3;
@@ -7435,6 +7961,7 @@ async function generateGroupChatReply(gid, images, userText) {
   const typingStatus = document.getElementById('chatTypingStatus');
   
   for (let qi = 0; qi < queue.length; qi++) {
+    if (gAborted) break;
     if (totalSentences >= globalMax) break;
     if (totalSentences >= globalMin && Math.random() < 0.3) break; // 达到下限后有概率提前结束
     
@@ -7449,6 +7976,7 @@ async function generateGroupChatReply(gid, images, userText) {
     
     // 该角色循环输出
     for (let si = 0; si < memberMax; si++) {
+      if (gAborted) break;
       if (totalSentences >= globalMax) break;
       // v77.48：答案揭晓后停止后续发言
       if (g._gameEnding) break;
@@ -7469,17 +7997,19 @@ async function generateGroupChatReply(gid, images, userText) {
         // v77.49：自定义游戏规则注入
         const gameCustomS = (isGame && g.settings.gameCustomKey) ? (ORDER_SERVICES[g.settings.gameCustomKey] || {}) : {};
         const gameRules = gameCustomS.customGame ? (gameCustomS.customGame.rules || '') : '';
+        const gameHostInstr = gameCustomS.customGame ? (gameCustomS.customGame.hostPrompt || '') : '';
         let sysPrompt;
         if (isGame && isHost) {
-          // 主持人：自定义游戏按用户规则主持；海龟汤只回答是/否/无关；答对后触发 [GAME_OVER]
+          // 主持人：自定义游戏按用户规则/主持人提示词主持；海龟汤只回答是/否/无关；答对后触发 [GAME_OVER]
           sysPrompt = gameRules
-            ? '你是「' + g.name + '」游戏的主持人「' + (member.remark || MULTI_GAME_HOST_NAME) + '」。你掌握完整游戏规则并负责主持本局。\n\n【游戏规则（用户定义）】\n' + gameRules + '\n\n【主持职责】\n- 按规则推进游戏，判定玩家的行动是否有效\n- 保持公正与悬念，不偏袒任何玩家\n- 当游戏目标达成（玩家获胜/谜底揭晓）时：确认结果，公布完整结局，然后在回复末尾加标记 [GAME_OVER]\n- 系统检测到 [GAME_OVER] 会自动结束游戏并给用户发奖励\n\n【打赏】如果你觉得用户（真人玩家）表现精彩，可以在回复末尾加 [TIPS:金额] 给用户打赏小费（1-10元整数），例如 [TIPS:3]。'
+            ? '你是「' + g.name + '」游戏的主持人「' + (member.remark || MULTI_GAME_HOST_NAME) + '」。你掌握完整游戏规则并负责主持本局。' + (gameHostInstr ? '\n\n【主持人指令（用户自定义）】\n' + gameHostInstr : '') + '\n\n【游戏规则（用户定义）】\n' + gameRules + '\n\n【主持职责】\n- 按规则推进游戏，判定玩家的行动是否有效\n- 保持公正与悬念，不偏袒任何玩家\n- 当游戏目标达成（玩家获胜/谜底揭晓）时：确认结果，公布完整结局，然后在回复末尾加标记 [GAME_OVER]\n- 系统检测到 [GAME_OVER] 会自动结束游戏并给用户发奖励\n\n【打赏】如果你觉得用户（真人玩家）表现精彩，可以在回复末尾加 [TIPS:金额] 给用户打赏小费（1-10元整数），例如 [TIPS:3]。'
             : '你是海龟汤游戏的主持人「' + (member.remark || MULTI_GAME_HOST_NAME) + '」。你已经知道完整的故事真相（汤底）。\n\n【你的职责】\n- 玩家提问时，只回答「是」「否」「无关」（或「是也不是」），不要解释\n- 当有玩家说出完整且正确的汤底时：先确认「答对了！」，公布完整汤底，然后在回复末尾加标记 [GAME_OVER]\n- 保持神秘感，不主动透露线索\n- 用简洁的方式回答，不要多说\n\n【打赏】如果你觉得用户（真人玩家）推理很精彩，可以在回复末尾加 [TIPS:金额] 给用户打赏小费（1-10元整数），例如 [TIPS:3]。';
         } else if (isGame && gameDir === 'pay') {
-          // 花钱端：用户是主持人，AI是玩家
+          // 花钱端：无主持人时用户是主持人（AI是玩家）；有主持人时AI主持、用户也是玩家
+          const hostInGroup = g.members.some(function(mb){ return mb.uid === MULTI_GAME_HOST_UID; });
           sysPrompt = gameRules
-            ? '你是「' + g.name + '」游戏的玩家「' + (member.remark || char.name) + '」。用户是主持人/出题人，已经给出了游戏规则和背景。\n\n【游戏规则】\n' + gameRules + '\n\n请遵守规则参与游戏，与主持人和其他玩家互动。保持角色人设，回复简洁有趣，只回复1句话。'
-            : '你是海龟汤推理游戏的玩家「' + (member.remark || char.name) + '」，正在群聊「' + g.name + '」中参与游戏。用户是主持人，已经给出了故事背景（汤面）。\n\n【海龟汤玩法】\n- 通过提问来推理故事的完整真相（汤底）\n- 主持人只会回答「是」「否」「无关」\n- 你可以提出假设性问题，也可以和其他玩家讨论推理思路\n- 提问要具体、有方向，不要乱问\n- 觉得接近真相时可以尝试说出完整汤底\n\n请自然参与游戏，和其他玩家互动讨论、推理、提问。保持角色人设，回复简洁有趣，只回复1句话。';
+            ? '你是「' + g.name + '」游戏的玩家「' + (member.remark || char.name) + '」。' + (hostInGroup ? 'AI主持人是本局主持，按规则推进游戏、判定结果。' : '用户是主持人/出题人，已经给出了游戏规则和背景。') + '\n\n【游戏规则】\n' + gameRules + '\n\n请遵守规则参与游戏，与主持人和其他玩家互动。保持角色人设，回复简洁有趣，只回复1句话。'
+            : '你是海龟汤推理游戏的玩家「' + (member.remark || char.name) + '」，正在群聊「' + g.name + '」中参与游戏。' + (hostInGroup ? 'AI主持人掌握故事真相（汤底），会主持大家的提问。' : '用户是主持人，已经给出了故事背景（汤面）。') + '\n\n【海龟汤玩法】\n- 通过提问来推理故事的完整真相（汤底）\n- 主持人只会回答「是」「否」「无关」\n- 你可以提出假设性问题，也可以和其他玩家讨论推理思路\n- 提问要具体、有方向，不要乱问\n- 觉得接近真相时可以尝试说出完整汤底\n\n请自然参与游戏，和其他玩家互动讨论、推理、提问。保持角色人设，回复简洁有趣，只回复1句话。';
         } else if (isGame && gameDir === 'earn') {
           // 赚钱端：AI主持人出题/按规则主持，用户和AI玩家猜/参与
           sysPrompt = gameRules
@@ -7540,7 +8070,8 @@ async function generateGroupChatReply(gid, images, userText) {
         const res = await fetch(apiBase.replace(/\/$/, '') + '/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (apiKey || '') },
-          body: JSON.stringify({ model: apiModel, messages: messages, temperature: 0.8, max_tokens: 200, stream: false })
+          body: JSON.stringify({ model: apiModel, messages: messages, temperature: 0.8, max_tokens: 200, stream: false }),
+          signal: xyGenSignal()
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
@@ -7577,9 +8108,10 @@ async function generateGroupChatReply(gid, images, userText) {
             saveGroupChats();
             renderChat();
           }
-          // v77.48：游戏结束标记 [GAME_OVER] → 主持人确认答案后自动结束（赚钱端）
+          // v77.48：游戏结束标记 [GAME_OVER] → 主持人确认答案后自动结束（赚钱端；花钱端勾选了AI主持也结束，不发奖励）
           const hasGameOver = /\[GAME_OVER\]/.test(reply);
-          if (hasGameOver && isGame && isHost && gameDir === 'earn') {
+          const gameHostActive = gameDir === 'earn' || (g.settings && g.settings.gameNeedHost);
+          if (hasGameOver && isGame && isHost && gameHostActive) {
             g._gameEnding = true;
             saveGroupChats();
             const myGid = gid;
@@ -7587,6 +8119,7 @@ async function generateGroupChatReply(gid, images, userText) {
           }
         }
       } catch(e) {
+        if (xyIsAbort(e)) { gAborted = true; break; }
         console.error('群聊回复失败', e);
         g.messages.push({ id: Date.now() + '_err', from: member.uid, text: '（回复失败）', time: Date.now(), read: false });
         saveGroupChats();
@@ -7603,6 +8136,7 @@ async function generateGroupChatReply(gid, images, userText) {
   
   if (typingStatus) typingStatus.style.display = 'none';
   renderNotifications();
+  xyEndGen();
 }
 
 // 群聊回复finally兜底：确保异常退出时状态被清理
@@ -7664,6 +8198,7 @@ function renderGroupChatMessages(g) {
       '<button title="复制" onclick="event.stopPropagation();copyChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' +
       '<button title="引用" onclick="event.stopPropagation();quoteChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>' +
       '<button title="分享" onclick="event.stopPropagation();shareChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>' +
+      (isMe ? '<button title="重新编辑" onclick="event.stopPropagation();editResendChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>' : '') +
       (isAI ? '<button title="重说" onclick="event.stopPropagation();regenerateChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>' : '') +
       (isAI ? '<button title="继续说" onclick="event.stopPropagation();appendChatMsg(\'' + m.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>' : '') +
     '</div>';
@@ -7678,7 +8213,7 @@ function renderGroupChatMessages(g) {
       '<div class="chat-msg-avatar" ' + avatarOnclick + ' style="background:' + senderColor + ';">' + avatarHtml + '</div>' +
       '<div class="chat-bubble-wrap">' +
         (!isMe ? '<div class="chat-sender-name">' + escapeHtml(senderName) + '</div>' : '') +
-        '<div class="chat-bubble" style="max-width:' + maxWidth + ';">' + (m.image ? '<img src="' + m.image + '" style="max-width:200px;border-radius:8px;margin-bottom:6px;">' : '') + escapeHtml(m.text || '') + '</div>' +
+        '<div class="chat-bubble" style="max-width:' + maxWidth + ';">' + (m.image ? '<img src="' + m.image + '" style="max-width:200px;border-radius:8px;margin-bottom:6px;">' : '') + escapeHtml(m.text || '') + (m.edited ? '<span style="font-size:11px;color:var(--text-tertiary);margin-left:4px;vertical-align:middle;">已编辑</span>' : '') + '</div>' +
         effectiveActions +
       '</div>' +
     '</div>';
@@ -9473,6 +10008,26 @@ function openCreateCustomGame() {
       '<textarea id="cgThemeInput" placeholder="例如：一局狼人杀，12人局，狼人夜晚刀人，白天发言投票…" style="width:calc(100% - 32px);margin:0 16px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;min-height:56px;resize:vertical;box-sizing:border-box;"></textarea>' +
       '<div style="margin:14px 16px 6px;font-size:13px;color:var(--text-secondary);">游戏内容与规则 <span style="color:var(--text-tertiary);font-size:11px;">（同步给AI的注意事项）</span></div>' +
       '<textarea id="cgRulesInput" placeholder="详细写清楚玩法、规则、判定条件、注意事项。多人赚钱端：AI主持人会按此规则主持，目标达成时自动判定结束。" style="width:calc(100% - 32px);margin:0 16px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;min-height:110px;resize:vertical;box-sizing:border-box;"></textarea>' +
+      // v77.56：多人专属——匹配人数 + 系统角色（主持人）
+      '<div id="cgMultiSection" style="display:none;">' +
+        '<div style="margin:14px 16px 6px;font-size:13px;color:var(--text-secondary);">匹配人数 <span style="color:var(--text-tertiary);font-size:11px;">（AI玩家数量，匹配时自动加载）</span></div>' +
+        '<div style="display:flex;gap:6px;margin:0 16px;flex-wrap:wrap;">' +
+          '<button onclick="setCgCount(3)" id="cgCount3" style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">3人</button>' +
+          '<button onclick="setCgCount(4)" id="cgCount4" style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">4人</button>' +
+          '<button onclick="setCgCount(5)" id="cgCount5" style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">5人</button>' +
+          '<button onclick="setCgCount(6)" id="cgCount6" style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">6人</button>' +
+          '<input type="number" id="cgCountCustom" min="1" max="10" placeholder="自定义" onchange="setCgCount(this.value)" style="width:88px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-size:13px;font-family:inherit;box-sizing:border-box;">' +
+        '</div>' +
+        '<div style="margin:14px 16px 6px;font-size:13px;color:var(--text-secondary);">系统角色（主持人）</div>' +
+        '<div style="display:flex;gap:8px;margin:0 16px;">' +
+          '<button onclick="setCgHost(1)" id="cgHostYes" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">加入主持人<br><span style="font-size:10px;color:var(--text-tertiary);">AI主持全局，你也当玩家</span></button>' +
+          '<button onclick="setCgHost(0)" id="cgHostNo" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">不加主持人<br><span style="font-size:10px;color:var(--text-tertiary);">自己主持（仅花钱端）</span></button>' +
+        '</div>' +
+        '<div id="cgHostPromptWrap" style="display:none;">' +
+          '<div style="margin:14px 16px 6px;font-size:13px;color:var(--text-secondary);">主持人提示词 <span style="color:var(--text-tertiary);font-size:11px;">（可选：想让主持人怎么主持、主持什么）</span></div>' +
+          '<textarea id="cgHostPromptInput" placeholder="例如：你是狼人杀法官，夜晚主持闭眼刀人、白天主持发言投票、判定胜负后宣布结果；负责推进剧情、把控节奏、制造悬念…" style="width:calc(100% - 32px);margin:0 16px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;min-height:88px;resize:vertical;box-sizing:border-box;"></textarea>' +
+        '</div>' +
+      '</div>' +
       '<div style="margin:16px;display:flex;gap:10px;">' +
         '<button onclick="closeCustomGameView()" style="flex:1;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);font-size:14px;cursor:pointer;font-family:inherit;">取消</button>' +
         '<button onclick="submitCustomGame()" style="flex:1.6;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">🚀 创建游戏模块</button>' +
@@ -9482,6 +10037,8 @@ function openCreateCustomGame() {
   document.body.appendChild(mask);
   window._cgType = 'single';
   window._cgPublish = 'reward';
+  window._cgCount = 5;
+  window._cgHost = 1;
   updateCgUi();
 }
 function closeCustomGameView() {
@@ -9490,6 +10047,13 @@ function closeCustomGameView() {
 }
 function setCgType(t) { window._cgType = t; updateCgUi(); }
 function setCgPublish(p) { window._cgPublish = p; updateCgUi(); }
+function setCgCount(n) {
+  const num = parseInt(n, 10);
+  if (isNaN(num) || num < 1) { showToast('人数至少1人'); return; }
+  window._cgCount = Math.min(10, num);
+  updateCgUi();
+}
+function setCgHost(h) { window._cgHost = h; updateCgUi(); }
 function updateCgUi() {
   const t = window._cgType || 'single';
   const p = window._cgPublish || 'reward';
@@ -9501,6 +10065,27 @@ function updateCgUi() {
   const r2 = document.getElementById('cgPubPublish');
   if (r1) { r1.style.borderColor = p==='reward' ? '#f59e0b' : 'var(--border)'; r1.style.background = p==='reward' ? 'rgba(245,158,11,0.12)' : 'var(--bg-secondary)'; r1.style.color = p==='reward' ? '#f59e0b' : 'var(--text-secondary)'; }
   if (r2) { r2.style.borderColor = p==='publish' ? '#34c759' : 'var(--border)'; r2.style.background = p==='publish' ? 'rgba(52,199,89,0.12)' : 'var(--bg-secondary)'; r2.style.color = p==='publish' ? '#34c759' : 'var(--text-secondary)'; }
+  // v77.56：多人专属区显示/隐藏
+  const sec = document.getElementById('cgMultiSection');
+  if (sec) sec.style.display = t === 'multi' ? 'block' : 'none';
+  const c = window._cgCount || 5;
+  [3,4,5,6].forEach(function(n){
+    const b = document.getElementById('cgCount' + n);
+    if (!b) return;
+    const active = c === n;
+    b.style.borderColor = active ? '#10b981' : 'var(--border)';
+    b.style.background = active ? 'rgba(16,185,129,0.12)' : 'var(--bg-secondary)';
+    b.style.color = active ? '#10b981' : 'var(--text-secondary)';
+  });
+  const cc = document.getElementById('cgCountCustom');
+  if (cc && [3,4,5,6].indexOf(c) < 0) cc.value = c;
+  const h = window._cgHost === 0 ? 0 : 1;
+  const hy = document.getElementById('cgHostYes');
+  const hn = document.getElementById('cgHostNo');
+  if (hy) { hy.style.borderColor = h===1 ? '#8b5cf6' : 'var(--border)'; hy.style.background = h===1 ? 'rgba(139,92,246,0.12)' : 'var(--bg-secondary)'; hy.style.color = h===1 ? '#8b5cf6' : 'var(--text-secondary)'; }
+  if (hn) { hn.style.borderColor = h===0 ? '#8b5cf6' : 'var(--border)'; hn.style.background = h===0 ? 'rgba(139,92,246,0.12)' : 'var(--bg-secondary)'; hn.style.color = h===0 ? '#8b5cf6' : 'var(--text-secondary)'; }
+  const hpw = document.getElementById('cgHostPromptWrap');
+  if (hpw) hpw.style.display = (t === 'multi' && h === 1) ? 'block' : 'none';
 }
 function submitCustomGame() {
   const nameInput = document.getElementById('cgNameInput');
@@ -9516,6 +10101,9 @@ function submitCustomGame() {
     publish: window._cgPublish || 'reward',
     theme: theme,
     rules: rules,
+    playerCount: (window._cgType === 'multi') ? (window._cgCount || 5) : 0,
+    needHost: (window._cgType === 'multi') ? (window._cgHost === 0 ? 0 : 1) : 1,
+    hostPrompt: (window._cgHost === 1) ? ((document.getElementById('cgHostPromptInput') || {}).value ? document.getElementById('cgHostPromptInput').value.trim() : '') : '',
     icon: (window._cgType === 'multi') ? '🎲' : '💬',
     createdAt: Date.now()
   };
@@ -9630,8 +10218,8 @@ function renderOrdersView() {
   const multiEarnKeys = multiKeys.filter(function(k){ const s = ORDER_SERVICES[k]; return !s.custom || s.publish === 'publish'; });
   const multiPayCards = multiPayKeys.map(function(key){
     const s = ORDER_SERVICES[key];
-    const cgTxt = s.custom ? '（你主持）' : '（你出题）';
-    const cgDesc = s.custom ? '多选AI进群聊，你按规则主持' : '多选AI进群聊，你当主持人';
+    const cgTxt = s.custom ? ((s.customGame && s.customGame.needHost) ? '（AI主持）' : '（你主持）') : '（你出题）';
+    const cgDesc = s.custom ? ((s.customGame && s.customGame.needHost) ? '多选AI进群聊，AI主持人按规则主持，你也当玩家' : '多选AI进群聊，你按规则主持') : '多选AI进群聊，你当主持人';
     return '<div style="margin:10px 16px;border-radius:16px;background:' + s.color + ';padding:18px 16px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:12px;" onclick="startMultiGame(\'' + key + '\',\'pay\')">' +
       '<div style="font-size:32px;">' + s.icon + '</div>' +
       '<div style="flex:1;">' +
@@ -10112,18 +10700,23 @@ async function generateMultiNames(type, order) {
   mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;';
   mask.innerHTML =
     '<div style="font-size:36px;margin-bottom:12px;">💭</div>' +
-    '<div style="font-size:16px;font-weight:600;margin-bottom:6px;">正在召集 ' + s.title + ' 玩家...</div>' +
+    '<div style="font-size:16px;font-weight:600;margin-bottom:6px;">正在召集 ' + s.title + ' 玩家' + (window._pendingMultiCount ? ('（' + window._pendingMultiCount + '人局）') : '') + '...</div>' +
     '<div style="font-size:13px;color:rgba(255,255,255,0.6);">现场编造玩家昵称</div>' +
     '<button onclick="cancelMultiMatch(\'' + order.id + '\')" style="margin-top:24px;padding:10px 40px;border-radius:24px;border:1px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.1);color:#fff;font-size:14px;cursor:pointer;">取消匹配</button>';
   document.body.appendChild(mask);
   let names = [];
+  // v77.56：自定义游戏按创建时填写的匹配人数生成玩家
+  const s2 = ORDER_SERVICES[type] || {};
+  const isCustomS = !!(s2.custom && s2.customGame);
+  const wantCount = isCustomS ? (s2.customGame.playerCount || 5) : 5;
+  window._pendingMultiCount = wantCount;
   try {
     const cfg = config;
     const baseUrl = config.baseUrl;
     const apiKey = config.apiKey;
     const model = config.model;
     if (baseUrl && apiKey && model) {
-      const prompt = '你是「' + s.title + '」游戏的玩家名生成器。请现场编造5个有特色的中文昵称（2-4个字），适合推理游戏玩家。只输出5个名字，用中文逗号分隔，不要有其他文字。';
+      const prompt = '你是「' + s.title + '」游戏的玩家名生成器。请现场编造' + wantCount + '个有特色的中文昵称（2-4个字），适合推理游戏玩家。只输出' + wantCount + '个名字，用中文逗号分隔，不要有其他文字。';
       const res = await fetch(baseUrl.replace(/\/$/, '') + '/chat/completions', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + apiKey },
@@ -10131,11 +10724,14 @@ async function generateMultiNames(type, order) {
       });
       const data = await res.json();
       const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) ? data.choices[0].message.content.trim() : '';
-      names = text.split(/[,，、\n]+/).map(function(n){ return n.trim(); }).filter(function(n){ return n && n.length <= 6; }).slice(0, 5);
+      names = text.split(/[,，、\n]+/).map(function(n){ return n.trim(); }).filter(function(n){ return n && n.length <= 6; }).slice(0, wantCount);
     }
   } catch(e) {}
-  if (names.length === 0) names = ['推理喵','柯南粉','小侦探','夜行者','谜之君'];
-  while (names.length < 5) names.push('玩家' + (names.length + 1));
+  const fallback = ['推理喵','柯南粉','小侦探','夜行者','谜之君','福尔摩斯'];
+  for (let fi = 0; names.length < wantCount && fi < fallback.length; fi++) {
+    if (names.indexOf(fallback[fi]) < 0) names.push(fallback[fi]);
+  }
+  while (names.length < wantCount) names.push('玩家' + (names.length + 1));
   const m = document.getElementById('nameGenView');
   if (m) m.remove();
   window._pendingAINames = names;
@@ -10152,33 +10748,45 @@ function showMultiNamePicker(type, order, names) {
   const nameCards = names.map(function(n, i){
     return '<div class="multi-pick-card" data-idx="' + i + '" style="display:inline-flex;flex-direction:column;align-items:center;margin:8px;padding:14px;border-radius:14px;background:rgba(255,255,255,0.1);cursor:pointer;width:100px;transition:all 0.2s;border:2px solid transparent;position:relative;" onclick="toggleMultiPick(' + i + ')">' +
       '<div style="position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;" class="multi-pick-check">✓</div>' +
-      '<div style="width:52px;height:52px;border-radius:50%;background:' + colors[i] + ';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin-bottom:8px;">' + n.charAt(0) + '</div>' +
+      '<div style="width:52px;height:52px;border-radius:50%;background:' + (colors[i] || '#888') + ';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin-bottom:8px;">' + n.charAt(0) + '</div>' +
       '<div style="font-size:14px;font-weight:600;">' + n + '</div>' +
     '</div>';
   }).join('');
   const hint = direction === 'pay'
-    ? '选择1-5位AI玩家，你当主持人出题'
-    : '选择1-5位AI队友，主持人出题大家猜';
+    ? '选择1-' + names.length + '位AI玩家，你当主持人出题'
+    : '选择1-' + names.length + '位AI队友，主持人出题大家猜';
   mask.innerHTML =
     '<div style="font-size:18px;font-weight:700;margin-bottom:4px;">🎯 匹配到 ' + names.length + ' 位玩家</div>' +
-    '<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:12px;">' + hint + '（点击勾选，可多选）</div>' +
+    '<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:12px;">' + hint + '（点击取消勾选，可调整）</div>' +
     '<div style="display:flex;flex-wrap:wrap;justify-content:center;max-width:400px;">' + nameCards + '</div>' +
-    '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:12px;" id="multiPickCount">已选 0 位</div>' +
+    '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:12px;" id="multiPickCount">已选 ' + names.length + ' 位</div>' +
     '<div style="display:flex;gap:12px;margin-top:16px;">' +
       '<button onclick="cancelMultiMatch(\'' + order.id + '\')" style="padding:10px 32px;border-radius:24px;border:1px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.1);color:#fff;font-size:14px;cursor:pointer;">取消</button>' +
-      '<button onclick="confirmMultiPick()" style="padding:10px 32px;border-radius:24px;border:none;background:#8b5cf6;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" id="multiConfirmBtn" disabled>确定（0）</button>' +
+      '<button onclick="confirmMultiPick()" style="padding:10px 32px;border-radius:24px;border:none;background:#8b5cf6;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" id="multiConfirmBtn">确定（' + names.length + '）</button>' +
     '</div>';
   document.body.appendChild(mask);
-  window._multiPicked = [];
+  // v77.56：默认全选本次匹配到的玩家（可取消），数量按创建时填的匹配人数
+  window._multiPicked = names.map(function(n, i){ return i; });
+  const initCards = document.querySelectorAll('.multi-pick-card');
+  initCards.forEach(function(card, i){
+    card.style.borderColor = '#8b5cf6';
+    card.style.background = 'rgba(139,92,246,0.3)';
+    const check = card.querySelector('.multi-pick-check');
+    if (check) { check.style.background = '#8b5cf6'; check.style.borderColor = '#8b5cf6'; check.style.color = '#fff'; }
+  });
+  const btn = document.getElementById('multiConfirmBtn');
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
 }
 // 切换多选状态
 function toggleMultiPick(idx) {
   if (!window._multiPicked) window._multiPicked = [];
   const pos = window._multiPicked.indexOf(idx);
   if (pos >= 0) {
+    if (window._multiPicked.length <= 1) { showToast('至少保留1位'); return; }
     window._multiPicked.splice(pos, 1);
   } else {
-    if (window._multiPicked.length >= 5) { showToast('最多选5位'); return; }
+    const maxN = window._pendingMultiCount || 5;
+    if (window._multiPicked.length >= maxN) { showToast('最多选' + maxN + '位'); return; }
     window._multiPicked.push(idx);
   }
   // 更新UI
@@ -10224,11 +10832,12 @@ function confirmMultiPick() {
     const uid = (ch && ch.uid) ? ch.uid : resolveCharUid(name);
     memberUids.push(uid);
   });
-  // 赚钱端：确保主持人角色存在并加入
+  // 赚钱端：确保主持人角色存在并加入；花钱端自定义游戏勾选了"加入主持人"也加入
   const s = ORDER_SERVICES[order.type] || {};
   const isCustom = !!(s.custom && s.customGame);
+  const needHost = direction === 'earn' || (isCustom && s.customGame.needHost);
   const hostName = isCustom ? (s.title + '主持人') : MULTI_GAME_HOST_NAME;
-  if (direction === 'earn') {
+  if (needHost) {
     let host = getCharByUid(MULTI_GAME_HOST_UID);
     if (!host) {
       // 创建主持人角色（固定UID）
@@ -10251,15 +10860,16 @@ function confirmMultiPick() {
   // 自动建群聊
   const gid = 'group_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
   const members = [{ uid: USER_SELF_ID, remark: '', groupAvatar: '', groupPersona: '', minSen: 1, maxSen: 2 }];
-  if (direction === 'earn') {
-    // 主持人排第一个（自定义游戏用用户规则作为主持人提示词）
-    members.push({ uid: MULTI_GAME_HOST_UID, remark: hostName, groupAvatar: '', groupPersona: isCustom ? s.prompt : TURTLE_PROMPT_HOST, minSen: 1, maxSen: 2 });
+  if (needHost) {
+    // 主持人排第一个（自定义游戏：用户写的主持人提示词优先，其次规则）
+    const hostPrompt = isCustom ? (s.customGame.hostPrompt || s.customGame.rules || '') : '';
+    members.push({ uid: MULTI_GAME_HOST_UID, remark: hostName, groupAvatar: '', groupPersona: isCustom ? (hostPrompt || s.prompt || TURTLE_PROMPT_HOST) : TURTLE_PROMPT_HOST, minSen: 1, maxSen: 2 });
   }
   memberUids.forEach(function(uid){
     const ch = getCharacter(uid);
     members.push({ uid: uid, remark: '', groupAvatar: ch ? (ch.avatar || '') : '', groupPersona: ch ? (ch.persona || ch.personality || '') : '', minSen: 1, maxSen: 2 });
   });
-  const groupName = direction === 'pay'
+  const groupName = !needHost
     ? (isCustom ? s.title + '·你主持' : '海龟汤·你出题')
     : (isCustom ? s.title + '·AI主持' : '海龟汤·AI出题');
   groupChats[gid] = {
@@ -10279,14 +10889,15 @@ function confirmMultiPick() {
       gameCustomKey: isCustom ? order.type : '',
       gameDirection: direction,
       gameOrderId: orderId,
-      gameTheme: isCustom ? (s.customGame.theme || '') : ''
+      gameTheme: isCustom ? (s.customGame.theme || '') : '',
+      gameNeedHost: needHost ? 1 : 0
     },
     messages: []
   };
   saveGroupChats();
   // 关联订单
   order.groupId = gid;
-  order.aiName = direction === 'earn' ? hostName : (members.length > 1 ? '多人局' : '');
+  order.aiName = needHost ? hostName : (members.length > 1 ? '多人局' : '');
   order.updateTime = Date.now();
   saveOrders();
   // 关闭选择弹窗
@@ -10302,7 +10913,7 @@ function confirmMultiPick() {
   setTimeout(function(){
     const g = getGroupChat(gid);
     if (!g) return;
-    if (direction === 'pay') {
+    if (direction === 'pay' && !needHost) {
       g.messages.push({ id: 'sys_' + Date.now(), from: 'system', text: isCustom
         ? ('🎲 ' + s.title + ' 开始！你是主持人，请在输入框中描述游戏开场与背景（或按你创建的主题开始），AI玩家们会按规则参与。你可以在群设置中修改游戏主题。')
         : '🐢 海龟汤游戏开始！你是主持人，请在输入框中描述故事背景（汤面），AI玩家们会通过提问来推理真相。你可以在群设置中修改游戏主题。', time: Date.now(), _internal: true });
@@ -10327,7 +10938,8 @@ async function generateTurtleHostPuzzle(gid) {
   const apiKey = cfg.apiKey;
   const model = cfg.model;
   if (!baseUrl || !apiKey || !model) {
-    g.messages.push({ id: 'm_' + Date.now(), from: MULTI_GAME_HOST_UID, text: '大家好，我是主持人。今天的汤面是：一个男人走进餐厅，点了一份海龟汤，喝了一口后就冲出去自杀了。请问为什么？', time: Date.now() });
+    const isCustomGame0 = g.settings.gameType === 'custom';
+    g.messages.push({ id: 'm_' + Date.now(), from: MULTI_GAME_HOST_UID, text: isCustomGame0 ? '🎮 游戏开始！我是主持人。请玩家们先发言，我们按规则进行。' : '大家好，我是主持人。今天的汤面是：一个男人走进餐厅，点了一份海龟汤，喝了一口后就冲出去自杀了。请问为什么？', time: Date.now() });
     saveGroupChats();
     renderGroupChatMessages(g);
     return;
@@ -10342,8 +10954,9 @@ async function generateTurtleHostPuzzle(gid) {
   saveGroupChats();
   renderGroupChatMessages(g);
   try {
+    const hostInstr = (customCg && customCg.hostPrompt) ? ('【主持人指令（用户自定义）】\n' + customCg.hostPrompt + '\n\n') : '';
     const prompt = isCustomGame
-      ? '你是「' + customS.title + '」游戏的主持人「' + hostName + '」。游戏规则（用户定义）：\n' + (customCg ? (customCg.rules || '') : '') + '\n\n【开场职责】请先向全体玩家说明游戏开始，简要介绍规则，然后开始主持第一轮。语言简洁有气氛，不要输出思考过程。'
+      ? '你是「' + customS.title + '」游戏的主持人「' + hostName + '」。' + hostInstr + '游戏规则（用户定义）：\n' + (customCg ? (customCg.rules || '') : '') + '\n\n【开场职责】请先向全体玩家说明游戏开始，简要介绍规则，然后开始主持第一轮。语言简洁有气氛，不要输出思考过程。'
       : '你是海龟汤游戏的主持人。请出一道经典的海龟汤题目（汤面），要求：\n1. 汤面是一个看似离奇的场景描述（1-3句话）\n2. 背后有一个合理但出人意料的完整故事（汤底）\n3. 不要在汤面中透露答案\n4. 经典题材优先（如：海龟汤、企鹅肉、半根火柴等）\n\n只输出汤面内容，不要输出汤底，不要加其他解释。';
     const res = await fetch(baseUrl.replace(/\/$/, '') + '/chat/completions', {
       method:'POST',
@@ -10501,6 +11114,7 @@ function renderOrderChat() {
             // v77新增：图片附件显示
             (m.image ? '<img src="' + m.image + '" style="max-width:180px;max-height:220px;border-radius:8px;margin-bottom:' + (m.text ? '6px' : '0') + ';display:block;cursor:pointer;" onclick="showImagePreview(\'' + m.image.replace(/'/g, "\\'") + '\')">' : '') +
             escapeHtml(m.text || '') +
+            (m.edited ? '<span style="font-size:11px;opacity:0.65;margin-left:4px;vertical-align:middle;">已编辑</span>' : '') +
           '</div>' +
         '</div>';
       }).join('');
@@ -10550,7 +11164,7 @@ function renderOrderChat() {
         '<input type="file" id="orderChatImgInput" accept="image/*" style="display:none;" onchange="orderPickImg(this)">' +
         '<button onclick="document.getElementById(\'orderChatImgInput\').click()" style="background:none;border:none;font-size:20px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📷</button>' +
         '<input id="orderChatInput" type="text" placeholder="和 ' + escapeHtml(order.aiName) + ' 说点什么..." value="' + (sessionStorage.getItem('xy_order_input_' + order.id) || '') + '" style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:14px;outline:none;color:var(--text-primary);font-family:inherit;" oninput="sessionStorage.setItem(\'xy_order_input_' + order.id + '\', this.value)">' +
-        '<button onclick="sendOrderMessage()" style="padding:10px 18px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">发送</button>' +
+        '<button id="orderChatSendBtn" onclick="if(xyGenBusy&&xyGenScene===\'order\'){xyStopGen();return;}sendOrderMessage()" style="padding:10px 18px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">发送</button>' +
         '<button onclick="finishOrder()" style="padding:10px 14px;border:none;border-radius:20px;background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">完成服务</button>' +
       '</div>' +
     '</div>' : '') ;
@@ -10852,6 +11466,7 @@ function sendOrderMessage() {
 // 生成订单AI回复（独立提示词，不走私信）
 async function generateOrderReply(order, images, _roundCount) {
   if (!order) return;
+  xyBeginGen('order');
   const s = ORDER_SERVICES[order.type] || {};
   // v77.14：复用私信多轮机制——_roundCount 循环调度（系统再次申请上游，每轮模型自己输出1句）
   _roundCount = _roundCount || 0;
@@ -10939,7 +11554,7 @@ async function generateOrderReply(order, images, _roundCount) {
         }
       }
     }
-    if (!baseUrl || !apiKey) { showToast('请先配置API'); return; }
+    if (!baseUrl || !apiKey) { showToast('请先配置API'); xyEndGen(); return; }
     // 模拟"正在输入"
     order.messages.push({ from:'ai', text:'', time:Date.now(), typing:true });
     saveOrders();
@@ -10949,7 +11564,8 @@ async function generateOrderReply(order, images, _roundCount) {
       const res = await fetch(baseUrl.replace(/\/$/, '') + '/chat/completions', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + apiKey },
-        body: JSON.stringify({ model: model, messages: messages, max_tokens: 500, stream: true })
+        body: JSON.stringify({ model: model, messages: messages, max_tokens: 500, stream: true }),
+        signal: xyGenSignal()
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       // 先移除typing，换成流式消息
@@ -10963,7 +11579,14 @@ async function generateOrderReply(order, images, _roundCount) {
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
       while (true) {
-        const { done, value } = await reader.read();
+        let chunk;
+        try {
+          chunk = await reader.read();
+        } catch(e) {
+          if (xyIsAbort(e)) break;
+          throw e;
+        }
+        const { done, value } = chunk;
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         // 按行解析SSE
@@ -11029,18 +11652,25 @@ async function generateOrderReply(order, images, _roundCount) {
       streamMsg.streaming = false;
       saveOrders();
       renderOrderChat();
+      xyEndGen();
     } catch(streamErr) {
-      // 流式失败回退到非流式
       order.messages = order.messages.filter(m => !m.typing);
-      order.messages.push({ from:'ai', text:'（服务连接失败，请检查API配置）', time:Date.now() });
+      if (streamMsg) streamMsg.streaming = false;
+      if (!xyIsAbort(streamErr)) {
+        order.messages.push({ from:'ai', text:'（服务连接失败，请检查API配置）', time:Date.now() });
+      }
       saveOrders();
       renderOrderChat();
+      xyEndGen();
     }
   } catch(e) {
     order.messages = order.messages.filter(m => !m.typing);
-    order.messages.push({ from:'ai', text:'（服务连接失败，请检查API配置）', time:Date.now() });
+    if (!xyIsAbort(e)) {
+      order.messages.push({ from:'ai', text:'（服务连接失败，请检查API配置）', time:Date.now() });
+    }
     saveOrders();
     renderOrderChat();
+    xyEndGen();
   }
 }
 // 完成服务（打分）
@@ -11495,6 +12125,7 @@ function renderCourt() {
             // v77新增：小法庭图片附件显示
             (m.image ? '<img src="' + m.image + '" style="max-width:180px;max-height:220px;border-radius:8px;margin-bottom:' + (m.text ? '6px' : '0') + ';display:block;cursor:pointer;" onclick="showImagePreview(\'' + m.image.replace(/'/g, "\\'") + '\')">' : '') +
             escapeHtml(m.text || '') +
+            (m.edited ? '<span style="font-size:11px;opacity:0.65;margin-left:4px;vertical-align:middle;">已编辑</span>' : '') +
           '</div>' +
         '</div>';
       }).join('');
@@ -11775,13 +12406,21 @@ async function generateCourtReply(order) {
       const res = await fetch(baseUrl.replace(/\/$/, '') + '/chat/completions', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + apiKey },
-        body: JSON.stringify({ model: model, messages: messages, max_tokens: 500, stream: true })
+        body: JSON.stringify({ model: model, messages: messages, max_tokens: 500, stream: true }),
+        signal: xyGenSignal()
       });
       if (!res.ok || !res.body) throw new Error('stream failed');
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
-        const { done, value } = await reader.read();
+        let ck;
+        try {
+          ck = await reader.read();
+        } catch(e) {
+          if (xyIsAbort(e)) break;
+          throw e;
+        }
+        const { done, value } = ck;
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
@@ -12193,6 +12832,7 @@ function renderServeChat() {
             // v77新增：图片附件显示
             (m.image ? '<img src="' + m.image + '" style="max-width:180px;max-height:220px;border-radius:8px;margin-bottom:' + (m.text ? '6px' : '0') + ';display:block;cursor:pointer;" onclick="showImagePreview(\'' + m.image.replace(/'/g, "\\'") + '\')">' : '') +
             escapeHtml(m.text || '') +
+            (m.edited ? '<span style="font-size:11px;opacity:0.65;margin-left:4px;vertical-align:middle;">已编辑</span>' : '') +
           '</div>' +
         '</div>';
       }).join('');
@@ -12214,7 +12854,7 @@ function renderServeChat() {
     (order.status === 'active' ?
     '<div style="flex-shrink:0;padding:10px 12px;background:var(--tabbar-bg);border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;">' +
       '<input id="serveChatInput" type="text" placeholder="帮 ' + escapeHtml(order.aiName) + ' 完成服务..." value="' + (sessionStorage.getItem('xy_serve_input_' + order.id) || '') + '" style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:14px;outline:none;color:var(--text-primary);font-family:inherit;" oninput="sessionStorage.setItem(\'xy_serve_input_' + order.id + '\', this.value)">' +
-      '<button onclick="sendServeMessage()" style="padding:10px 16px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">发送</button>' +
+      '<button id="serveChatSendBtn" onclick="if(xyGenBusy&&xyGenScene===\'serve\'){xyStopGen();return;}sendServeMessage()" style="padding:10px 16px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">发送</button>' +
       '<button onclick="finishServe()" style="padding:10px 12px;border:none;border-radius:20px;background:#34c759;color:#fff;font-size:13px;cursor:pointer;font-family:inherit;">完成服务</button>' +
       '<button onclick="aiRequestArbitration()" style="padding:10px 12px;border:none;border-radius:20px;background:#8b5cf6;color:#fff;font-size:12px;cursor:pointer;font-family:inherit;">⚖️AI申请仲裁</button>' +
     '</div>' : '') ;
@@ -12274,6 +12914,7 @@ function sendServeMessage() {
 // AI被服务回复（AI作为被服务方，按服务类型提示词回应）v77.14：复用私信多轮机制
 async function generateServeReply(order, images, _roundCount) {
   if (!order) return;
+  xyBeginGen('serve');
   _roundCount = _roundCount || 0;
   const s = ORDER_SERVICES[order.type] || {};
   let sysPrompt = '你是' + order.aiName + '，正在向用户寻求「' + s.title + '」服务。';
@@ -12296,21 +12937,29 @@ async function generateServeReply(order, images, _roundCount) {
     const baseUrl = (cfg && cfg.baseUrl) || config.baseUrl;
     const apiKey = (cfg && cfg.apiKey) || config.apiKey;
     const model = (cfg && cfg.model) || config.model;
-    if (!baseUrl || !apiKey) { showToast('请先配置API'); return; }
+    if (!baseUrl || !apiKey) { showToast('请先配置API'); xyEndGen(); return; }
     order.messages.push({ from:'ai', text:'…', time:Date.now(), typing:true });
     saveOrders();
     renderServeChat();
-    const res = await fetch(baseUrl.replace(/\/$/, '') + '/chat/completions', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + apiKey },
-      body: JSON.stringify({ model: model, messages: messages, max_tokens: 300 })
-    });
+    let res;
+    try {
+      res = await fetch(baseUrl.replace(/\/$/, '') + '/chat/completions', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + apiKey },
+        body: JSON.stringify({ model: model, messages: messages, max_tokens: 300 }),
+        signal: xyGenSignal()
+      });
+    } catch(e) {
+      if (xyIsAbort(e)) { order.messages = order.messages.filter(m => !m.typing); saveOrders(); renderServeChat(); xyEndGen(); return; }
+      throw e;
+    }
     const data = await res.json();
     const replyText = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) ? data.choices[0].message.content.trim() : '';
     order.messages = order.messages.filter(m => !m.typing);
     order.messages.push({ from:'ai', text: replyText || '（AI没有回复）', time:Date.now() });
     saveOrders();
     renderServeChat();
+    xyEndGen();
     // v77.14：复用私信多轮机制——下限循环调度（系统再次申请上游，递归调用，每轮模型自己输出1句）
     const minLines2 = order.minLines || 1;
     const newRoundCount = (_roundCount || 0) + 1;
@@ -12330,9 +12979,12 @@ async function generateServeReply(order, images, _roundCount) {
     }
   } catch(e) {
     order.messages = order.messages.filter(m => !m.typing);
-    order.messages.push({ from:'ai', text:'（连接失败）', time:Date.now() });
+    if (!xyIsAbort(e)) {
+      order.messages.push({ from:'ai', text:'（连接失败）', time:Date.now() });
+    }
     saveOrders();
     renderServeChat();
+    xyEndGen();
   }
 }
 // v77.07新增：AI 自动决定完成服务 or 申请仲裁（AI作为被服务方，服务是否满意由AI判断）
@@ -12505,6 +13157,9 @@ function fillSettingsForm() {
   document.getElementById('schedulerModel').value = config.scheduler?.model || '';
   document.getElementById('schedulerFreq').value = config.scheduler?.freq || '2';
   document.getElementById('contextWindow').value = config.scheduler?.contextWindow || 8;
+  const ert = document.getElementById('emojiRenderToggle');
+  if (ert) ert.checked = config.emojiRender !== false;
+  restoreBeautySection();
   toggleSchedulerConfig();
   toggleVisionConfig();
   toggleImageConfig();
@@ -12531,6 +13186,7 @@ function collectConfig() {
     minSubReplies: parseInt(document.getElementById('minSubReplies').value) || 1,
     minMentionReplies: parseInt(document.getElementById('minMentionReplies').value) || 1,
     autoReply: document.getElementById('aiAutoReply').checked,
+    emojiRender: document.getElementById('emojiRenderToggle') ? document.getElementById('emojiRenderToggle').checked : true,
     jsonMode: document.getElementById('jsonMode').checked,
     maxRetries: parseInt(document.getElementById('maxRetries').value) || 0,
     aiAutoPost: document.getElementById('aiAutoPost').checked,
@@ -13090,6 +13746,14 @@ function formatProfileNum(num) {
 }
 
 function escapeHtml(s) {
+  if (typeof s !== 'string') s = String(s == null ? '' : s);
+  // v77.57: 短代码 → Unicode emoji（纯文本替换，渲染层再由 Twemoji 转图片）
+  if (s.indexOf(':') >= 0 && /:([a-zA-Z0-9_+\-]+):/.test(s)) {
+    s = s.replace(/:([a-zA-Z0-9_+\-]+):/g, function(mm, code) {
+      const e = EMOJI_SHORTCODES[code.toLowerCase()];
+      return e ? e : mm;
+    });
+  }
   const div = document.createElement('div');
   div.textContent = s;
   return div.innerHTML;
@@ -18223,7 +18887,7 @@ function xyOpenAiSmartSearch() {
       '<div class="xy-ai-messages" id="xyAiMessages"></div>' +
       '<div class="xy-ai-input">' +
         '<textarea id="xyAiInput" placeholder="问问 AI，搜索你的内容..." onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();xySendAiSmart();}"></textarea>' +
-        '<button onclick="xySendAiSmart()" id="xyAiSendBtn">发送</button>' +
+        '<button onclick="if(xyGenBusy&&xyGenScene===\'assistant\'){xyStopGen();return;}xySendAiSmart()" id="xyAiSendBtn">发送</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(mask);
@@ -22568,6 +23232,69 @@ document.getElementById('minMentionReplies').addEventListener('input', (e) => {
 document.getElementById('aiAutoPost').addEventListener('change', function() {
   document.getElementById('autoPostIntervalRow').style.display = this.checked ? 'flex' : 'none';
 });
+// ===== v77.59: 全量数据备份 / 恢复 =====
+function exportAllData() {
+  try {
+    const data = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      data[k] = localStorage.getItem(k);
+    }
+    const pkg = {
+      app: 'xingyu',
+      type: 'full-backup',
+      version: 'v77.59',
+      exportedAt: new Date().toISOString(),
+      data: data
+    };
+    const blob = new Blob([JSON.stringify(pkg)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '星语全量备份-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
+    showToast('已导出全量数据备份（' + Object.keys(data).length + ' 项）');
+  } catch(e) {
+    showToast('导出失败：' + e.message);
+  }
+}
+function importAllData(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) { input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const pkg = JSON.parse(ev.target.result);
+      if (!pkg || pkg.app !== 'xingyu' || pkg.type !== 'full-backup' || !pkg.data || typeof pkg.data !== 'object') {
+        showToast('文件格式不正确，不是星语全量备份文件');
+        input.value = '';
+        return;
+      }
+      const keys = Object.keys(pkg.data);
+      if (!confirm('确认导入 ' + keys.length + ' 项数据？导入将覆盖当前全部本地数据，建议先导出备份。')) {
+        input.value = '';
+        return;
+      }
+      let fail = 0;
+      localStorage.clear();
+      keys.forEach(function(k) {
+        try { localStorage.setItem(k, pkg.data[k]); } catch(e) { fail++; }
+      });
+      if (fail > 0) showToast('导入完成，但有 ' + fail + ' 项写入失败（可能超存储配额）');
+      else showToast('导入成功，正在刷新...');
+      input.value = '';
+      setTimeout(function() { location.reload(); }, 800);
+    } catch(e) {
+      showToast('导入失败：' + e.message);
+      input.value = '';
+    }
+  };
+  reader.onerror = function() { showToast('文件读取失败'); input.value = ''; };
+  reader.readAsText(file);
+}
 document.getElementById('saveSettingsBtn').addEventListener('click', () => {
   config = collectConfig();
   saveConfig(config);
@@ -22611,6 +23338,110 @@ document.getElementById('advancedSave').addEventListener('click', () => {
     (config.vision.custom || config.image.custom) ? '已配置' : '未配置';
   showToast('高级设置已保存');
 });
+
+// ===== API 预设快照（v77.54）=====
+const SNAPSHOT_KEY = 'echo_api_snapshots';
+function loadSnapshots() {
+  try { const s = localStorage.getItem(SNAPSHOT_KEY); if (s) return JSON.parse(s); } catch(e) {}
+  return [];
+}
+function saveSnapshots(list) { try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(list)); } catch(e) {} }
+function fmtSnapshotTime(t) {
+  const d = new Date(t);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function attachOverlayClose(overlay) {
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+function modalCloseBtn() {
+  return '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+}
+function openSaveSnapshotModal() {
+  const cfg = collectConfig();
+  if (!cfg.baseUrl && !cfg.image.baseUrl && !cfg.vision.baseUrl) {
+    showToast('当前没有可保存的 API 配置'); return;
+  }
+  const defaultName = '快照 ' + fmtSnapshotTime(Date.now());
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.innerHTML =
+    '<div class="modal-sheet">' +
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><div class="modal-title">保存 API 快照</div>' + modalCloseBtn() + '</div>' +
+      '<div class="modal-body">' +
+        '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">快照名称</div>' +
+        '<input id="snapshotNameInput" type="text" value="' + escapeHtml(defaultName) + '" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;">' +
+        '<div style="font-size:12px;color:var(--text-tertiary);margin-top:10px;line-height:1.6;">将保存：主 API（' + escapeHtml(cfg.baseUrl || '未填') + '）、模型 ' + escapeHtml(cfg.model || '未填') + '，以及回复参数、视觉 / 生图 / 定时任务等全部设置</div>' +
+      '</div>' +
+      '<div style="padding:12px 16px calc(12px + var(--safe-bottom));border-top:1px solid var(--border);"><button class="api-btn primary" style="width:100%;height:44px;font-size:15px;font-weight:600;" onclick="doSaveSnapshot()">保存</button></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  attachOverlayClose(overlay);
+  window._snapshotCfg = cfg;
+  setTimeout(() => {
+    const inp = document.getElementById('snapshotNameInput');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 120);
+}
+function doSaveSnapshot() {
+  const inp = document.getElementById('snapshotNameInput');
+  const name = (inp && inp.value.trim()) || '';
+  const overlay = document.querySelector('.modal-overlay.show');
+  if (!name) { showToast('快照名称不能为空'); return; }
+  const list = loadSnapshots();
+  list.unshift({ name: name, time: Date.now(), config: window._snapshotCfg || collectConfig() });
+  saveSnapshots(list);
+  window._snapshotCfg = null;
+  if (overlay) overlay.remove();
+  showToast('快照已保存：' + name);
+}
+function openSnapshotListModal() {
+  const list = loadSnapshots();
+  if (list.length === 0) { showToast('还没有保存过快照'); return; }
+  const items = list.map((s, i) => {
+    const base = s.config && s.config.baseUrl ? s.config.baseUrl : '';
+    return '<label style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--bg-secondary);margin-bottom:8px;cursor:pointer;border:1px solid var(--border);">' +
+      '<input type="radio" name="snapshotPick" value="' + i + '" ' + (i === 0 ? 'checked' : '') + ' style="accent-color:var(--accent);width:18px;height:18px;flex-shrink:0;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:14px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(s.name) + '</div>' +
+        '<div style="font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + fmtSnapshotTime(s.time) + ' · ' + escapeHtml(base || '未填主API') + '</div>' +
+      '</div>' +
+    '</label>';
+  }).join('');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.innerHTML =
+    '<div class="modal-sheet">' +
+      '<div class="modal-handle"></div>' +
+      '<div class="modal-header"><div class="modal-title">API 预设</div>' + modalCloseBtn() + '</div>' +
+      '<div class="modal-body">' + items +
+        '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:6px 0 2px;">勾选一个预设，点击确定自动填充全部设置</div>' +
+      '</div>' +
+      '<div style="padding:12px 16px calc(12px + var(--safe-bottom));border-top:1px solid var(--border);"><button class="api-btn primary" style="width:100%;height:44px;font-size:15px;font-weight:600;" onclick="applySnapshotPick()">确定</button></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  attachOverlayClose(overlay);
+}
+function applySnapshotPick() {
+  const radio = document.querySelector('input[name="snapshotPick"]:checked');
+  const overlay = document.querySelector('.modal-overlay.show');
+  if (!radio) { showToast('请先勾选一个预设'); return; }
+  const list = loadSnapshots();
+  const snap = list[parseInt(radio.value, 10)];
+  if (!snap || !snap.config || typeof snap.config !== 'object') { showToast('快照数据无效'); return; }
+  const merged = Object.assign({}, config, snap.config);
+  ['vision', 'image', 'scheduler'].forEach(k => {
+    if (snap.config[k] && typeof snap.config[k] === 'object') {
+      merged[k] = Object.assign({}, (config[k] || {}), snap.config[k]);
+    }
+  });
+  config = merged;
+  saveConfig(config);
+  fillSettingsForm();
+  if (overlay) overlay.remove();
+  showToast('已恢复预设：' + snap.name);
+}
 
 // Model fetch + select modal
 document.getElementById('fetchModelsBtn').addEventListener('click', async () => {
@@ -25448,6 +26279,7 @@ async function xyCallAI(userMsg) {
     xyShowToast('请先在设置中配置本页AI的API地址、密钥和模型', 4000);
     return;
   }
+  xyBeginGen('assistant');
   const todoCtx = xyBuildTodoContext();
   const sysPrompt = xyBuildSystemPrompt(todoCtx);
 
@@ -25463,7 +26295,8 @@ async function xyCallAI(userMsg) {
         ],
         temperature: 0.7,
         max_tokens: 800
-      })
+      }),
+      signal: xyGenSignal()
     });
     const data = await resp.json();
     const rawReply = data.choices?.[0]?.message?.content || '（AI没有返回内容）';
@@ -25479,8 +26312,14 @@ async function xyCallAI(userMsg) {
     } else {
       xyShowToast(reply, 5000);
     }
+    xyEndGen();
   } catch(e) {
-    xyShowToast('AI调用失败: ' + e.message, 4000);
+    if (xyIsAbort(e)) {
+      xyShowToast('已停止生成', 2500);
+    } else {
+      xyShowToast('AI调用失败: ' + e.message, 4000);
+    }
+    xyEndGen();
   }
 }
 
@@ -25733,7 +26572,7 @@ function xyOpenChatHistory() {
     '<div class="xy-chat-list" id="xyHistList" style="max-height:55vh;">' + listHtml + '</div>' +
     '<div class="xy-chat-input-row">' +
       '<input class="xy-chat-input" id="xyHistInput" placeholder="继续聊..." onkeydown="if(event.key===\'Enter\')xySendHistMsg()">' +
-      '<button class="xy-chat-send" onclick="xySendHistMsg()">➤</button>' +
+      '<button class="xy-chat-send" id="xyHistSendBtn" onclick="if(xyGenBusy&&xyGenScene===\'assistant\'){xyStopGen();return;}xySendHistMsg()">➤</button>' +
     '</div>'
   );
   setTimeout(() => {
