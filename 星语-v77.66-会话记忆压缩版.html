@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>星语 V77.65 订单多图版</title>
+<title>星语 V77.66 会话记忆压缩版</title>
 <link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
 <style>
 /* ===== CSS Variables & Theme ===== */
@@ -4014,6 +4014,9 @@ const CHAT_KEY = 'echo_chat_v1';
 const CHAR_KEY = 'echo_characters_v1';
 const APPLY_KEY = 'echo_friend_apply_v1';
 let chatSessions = {}; // { characterId: [ {id, from:'me'|'ai', text, image, time, read} ] }
+// v77.66：会话记忆压缩——已压缩摘要存储 + 压缩忙碌锁（防重入）
+let chatMemories = {}; // { charId: { text, time } }
+let memCompressBusy = false;
 let groupChats = {}; // { groupId: { id, name, avatar, createdAt, members:[{uid, remark, groupAvatar, groupPersona, minSen, maxSen, apiBase, apiKey, apiModel}], settings:{bgImage, bgOpacity, apiBase, apiKey, apiModel, globalMinSen, globalMaxSen, scheduleMode, imageMode, keepCount}, messages:[{id, from:'me'|uid, text, image, time, read, atUid}] } }
 let currentGroupId = null;
 // 会话分组（文件夹收纳，仅收纳私信，不含群聊）
@@ -4100,6 +4103,7 @@ function loadChatData() {
   try {
     const cs = localStorage.getItem(CHAT_KEY);
     if (cs) chatSessions = JSON.parse(cs);
+    try { const cm = localStorage.getItem('echo_chat_memories'); if (cm) chatMemories = JSON.parse(cm); } catch(e2) {}
     const ch = localStorage.getItem(CHAR_KEY);
     if (ch) characters = JSON.parse(ch);
     // UID迁移：旧角色补全uid + 非规范uid统一迁移为顺序排号
@@ -4149,6 +4153,243 @@ function forceUnifyUids() {
   if (uidForceChanged) saveCharacters();
 }
 function saveChatSessions() { try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatSessions)); } catch(e) {} }
+function saveChatMemories() { try { localStorage.setItem('echo_chat_memories', JSON.stringify(chatMemories)); } catch(e) {} }
+
+// ================= v77.66 会话记忆压缩（私信 + 群聊） =================
+// 粗略估算文本长度（中文1字符≈1，英文按4字符≈1），用于触发阈值判断
+function estimateMemChars(text) {
+  if (!text) return 0;
+  return text.length;
+}
+// 把消息列表转成可总结的对话文本（过滤内部/系统/打字中消息，特殊卡片转简写）
+function chatTranscriptToText(msgs, groupMode) {
+  if (!msgs || !msgs.length) return '';
+  const lines = [];
+  msgs.forEach(function(m) {
+    if (!m || m._hidden || m._internal || m.typing || m.streaming || m.isSummary || m._memNotice) return;
+    let text = (m.text || '').trim();
+    if (!text) return;
+    const sender = m.from === 'me' ? '用户' : (groupMode ? (m.from || '角色') : 'AI');
+    if (m.type === 'post_card') {
+      const t = m.itemType ? ({post:'帖子',moment:'朋友圈',diary:'日记',share:'动态'}[m.itemType]||'作品') : '帖子';
+      lines.push(sender + '分享' + t + '《' + (m.title || '') + '》：' + (m.content || '').slice(0, 120));
+      return;
+    }
+    if (m.type === 'redpacket') { lines.push(sender + '发了一个红包（金额' + (m.amount || '?') + '）'); return; }
+    if (m.type === 'profile_card') { lines.push(sender + '分享个人名片：' + (m.profileName || '')); return; }
+    lines.push(sender + '：' + text);
+  });
+  return lines.join('\n');
+}
+// 记忆总结提示词
+function buildMemCompressPrompt(mode, transcript) {
+  const modeRule = {
+    persona: '重点保留：各角色的性格、人设、偏好、说话风格、重要关系与情感走向，其次保留关键事件。',
+    balanced: '重点保留：关键事件、重要结论、角色设定与用户偏好，次要细节可略。',
+    minimal: '只保留最核心的信息：当前场景、目标、最重要的事实，用最少的字数。'
+  }[mode] || '重点保留：关键事件、重要结论、角色设定与用户偏好，次要细节可略。';
+  return '你是一个对话记忆压缩助手，负责把一段聊天记录压缩成精炼摘要，以便在后续对话中作为背景记忆使用，节省上下文空间。\n\n' +
+    '【压缩要求】\n' + modeRule + '\n' +
+    '规则：\n1. 只输出摘要文本本身，不要任何解释、前言、标题、JSON。\n' +
+    '2. 使用中文，条理清晰，200-500字以内。\n' +
+    '3. 不要编造聊天记录中不存在的信息。\n' +
+    '4. 保留对后续对话有用的信息（人设、关系、约定、未完成事项、用户偏好）。\n\n' +
+    '【聊天记录】\n' + transcript.slice(0, 20000);
+}
+// 记忆模型API：会话独立配置优先，其次全局
+function getMemApi(kind) {
+  if (kind === 'group') {
+    const g = getGroupChat(currentGroupId);
+    const s = g ? (g.settings || {}) : {};
+    return { baseUrl: (s.memApiBase || '').trim() || (config && config.baseUrl || ''), apiKey: (s.memApiKey || '').trim() || (config && config.apiKey || ''), model: (s.memModel || '').trim() || (config && config.model || '') };
+  }
+  const cfg = getChatConfig(currentChatId);
+  return { baseUrl: (cfg.memApiBase || '').trim() || (config && config.baseUrl || ''), apiKey: (cfg.memApiKey || '').trim() || (config && config.apiKey || ''), model: (cfg.memModel || '').trim() || (config && config.model || '') };
+}
+// 通用压缩执行
+async function doMemCompress(kind, force) {
+  if (memCompressBusy) { showToast('记忆压缩进行中，请稍候'); return; }
+  let msgs, cfg, threshold, keep, mode, id;
+  if (kind === 'group') {
+    const g = getGroupChat(currentGroupId);
+    if (!g) return;
+    msgs = g.messages || [];
+    cfg = g.settings || {};
+    id = g.id;
+  } else {
+    const charId = currentChatId;
+    if (!charId) return;
+    msgs = chatSessions[charId] || [];
+    cfg = getChatConfig(charId);
+    id = charId;
+  }
+  if (!cfg.memCompress && !force) return;
+  const transcript = chatTranscriptToText(msgs, kind === 'group');
+  if (!transcript) { if (force) showToast('暂无可压缩的消息'); return; }
+  threshold = parseInt(cfg.memThreshold, 10) || 8000;
+  if (!force && estimateMemChars(transcript) < threshold) return;
+  const api = getMemApi(kind);
+  if (!api.baseUrl || !api.apiKey) { if (force) showToast('未配置API（记忆模型留空时使用全局API）'); return; }
+  if (!api.model) { if (force) showToast('未配置模型名称'); return; }
+  memCompressBusy = true;
+  try {
+    mode = cfg.memMode || 'balanced';
+    const prompt = buildMemCompressPrompt(mode, transcript);
+    const res = await fetch(api.baseUrl.replace(/\/+$/, '') + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api.apiKey },
+      body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800 }),
+      signal: xyGenSignal()
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    let summary = '';
+    try { summary = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim(); } catch(e2) {}
+    if (!summary) throw new Error('模型返回空摘要');
+    keep = parseInt(cfg.memKeepRecent, 10) || 10;
+    const now = Date.now();
+    const notice = { id: 'mem_' + now + '_' + Math.random().toString(36).slice(2,6), from: 'system', text: '🧠 会话记忆已压缩：' + summary, time: now, _memNotice: true };
+    if (kind === 'group') {
+      const g = getGroupChat(currentGroupId);
+      if (!g) return;
+      g.summary = { text: summary, time: now };
+      const recent = g.messages.slice(-keep);
+      g.messages = recent.concat([notice]);
+      saveGroupChats();
+    } else {
+      const charId = currentChatId;
+      chatMemories[charId] = { text: summary, time: now };
+      saveChatMemories();
+      const session = chatSessions[charId] || [];
+      const recent = session.slice(-keep);
+      session.length = 0;
+      recent.forEach(function(m){ session.push(m); });
+      session.push(notice);
+      saveChatSessions();
+    }
+    renderChat();
+    showToast('记忆已压缩 ✓');
+  } catch(e) {
+    debugLog('记忆压缩失败: ' + (e && e.message || e));
+    showToast('记忆压缩失败：' + ((e && e.message || '未知错误') + '').slice(0, 60));
+  } finally {
+    memCompressBusy = false;
+  }
+}
+// 自动检查（回复完成后调用，不阻塞）
+function checkChatMemCompress(charId) {
+  const cfg = getChatConfig(charId);
+  if (!cfg.memCompress) return;
+  const msgs = chatSessions[charId] || [];
+  const t = chatTranscriptToText(msgs, false);
+  if (estimateMemChars(t) >= (parseInt(cfg.memThreshold, 10) || 8000)) {
+    const prev = currentChatId;
+    currentChatId = charId;
+    doMemCompress('chat', false);
+    currentChatId = prev;
+  }
+}
+function checkGroupMemCompress(gid) {
+  const g = getGroupChat(gid);
+  if (!g || !g.settings || !g.settings.memCompress) return;
+  const t = chatTranscriptToText(g.messages || [], true);
+  if (estimateMemChars(t) >= (parseInt(g.settings.memThreshold, 10) || 8000)) {
+    const prev = currentGroupId;
+    currentGroupId = gid;
+    doMemCompress('group', false);
+    currentGroupId = prev;
+  }
+}
+// 手动触发
+function manualMemCompress(kind) { doMemCompress(kind, true); }
+// 配置保存（统一入口，kind=chat/group）
+function saveMemField(kind, field, value) {
+  if (kind === 'group') {
+    const g = getGroupChat(currentGroupId);
+    if (!g) return;
+    g.settings[field] = value;
+    saveGroupChats();
+  } else {
+    const charId = currentChatId;
+    if (!charId) return;
+    const cfg = getChatConfig(charId);
+    cfg[field] = value;
+    saveChatConfig(charId, cfg);
+  }
+  showToast('已保存');
+}
+// 清除摘要
+function clearMemSummary(kind) {
+  if (kind === 'group') {
+    const g = getGroupChat(currentGroupId);
+    if (!g) return;
+    delete g.summary;
+    saveGroupChats();
+  } else {
+    const charId = currentChatId;
+    delete chatMemories[charId];
+    saveChatMemories();
+  }
+  renderChat();
+  showToast('记忆摘要已清除');
+}
+// 折叠面板开关
+let memPanelOpen = false;
+function toggleMemPanel() {
+  memPanelOpen = !memPanelOpen;
+  const c = document.getElementById('memCompressContent');
+  const a = document.getElementById('memCompressArrow');
+  if (c) c.style.display = memPanelOpen ? '' : 'none';
+  if (a) a.style.transform = memPanelOpen ? 'rotate(90deg)' : '';
+}
+// 生成设置面板区块 HTML（私信/群聊共用）
+function memCompressBlockHTML(kind, cfg, summary) {
+  const on = kind === 'group' ? (cfg.memCompress || false) : (cfg.memCompress || false);
+  const thr = parseInt(cfg.memThreshold, 10) || 8000;
+  const keep = parseInt(cfg.memKeepRecent, 10) || 10;
+  const mode = cfg.memMode || 'balanced';
+  const k = kind;
+  const modeBtn = function(val, label) {
+    const active = mode === val;
+    return '<button onclick="saveMemField(\'' + k + '\',\'memMode\',\'' + val + '\');this.parentNode.querySelectorAll(\'button\').forEach(function(b){b.style.borderColor=\'var(--border)\';b.style.background=\'transparent\';b.style.color=\'var(--text-secondary)\';});this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-soft)\';this.style.color=\'var(--accent)\';" style="flex:1;padding:8px;border-radius:10px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-soft)' : 'transparent') + ';color:' + (active ? 'var(--accent)' : 'var(--text-secondary)') + ';font-size:13px;cursor:pointer;font-family:inherit;">' + label + '</button>';
+  };
+  const sumHtml = summary && summary.text ?
+    '<div style="padding:10px 14px;background:var(--bg-elevated);border-radius:8px;margin-bottom:10px;font-size:12px;color:var(--text-tertiary);max-height:90px;overflow-y:auto;">📎 当前记忆摘要（' + new Date(summary.time).toLocaleString() + '）<br>' + escapeHtml(summary.text.slice(0, 200)) + (summary.text.length > 200 ? '…' : '') + '<button onclick="clearMemSummary(\'' + k + '\')" style="margin-top:6px;display:block;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:#f44336;font-size:12px;cursor:pointer;font-family:inherit;">清除摘要</button></div>'
+    : '';
+  return '<div style="margin:0 16px 8px;font-size:13px;color:var(--text-tertiary);">🧠 会话记忆压缩</div>' +
+    '<div style="background:var(--bg-secondary);border-radius:12px;margin:0 16px 20px;overflow:hidden;">' +
+    '<div style="display:flex;align-items:center;padding:14px 16px;cursor:pointer;" onclick="toggleMemPanel()">' +
+      '<span style="flex:1;font-size:15px;">记忆压缩设置</span>' +
+      '<span style="font-size:12px;color:var(--text-tertiary);margin-right:6px;">' + (on ? '已开启' : '已关闭') + '</span>' +
+      '<svg id="memCompressArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--text-tertiary);transition:transform 0.2s;"><polyline points="9 18 15 12 9 6"/></svg>' +
+    '</div>' +
+    '<div id="memCompressContent" style="border-top:1px solid var(--border);padding:14px 16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<span style="font-size:14px;">自动总结</span>' +
+        '<label class="toggle-switch"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="saveMemField(\'' + k + '\',\'memCompress\',this.checked)"><span class="toggle-slider"></span></label>' +
+      '</div>' +
+      '<div style="margin-bottom:12px;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">触发阈值（字符数）</div>' +
+        '<input type="number" id="memThresholdInput" value="' + thr + '" min="1000" max="100000" step="500" onchange="saveMemField(\'' + k + '\',\'memThreshold\',parseInt(this.value,10)||8000)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;">' +
+        '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">对话文本超过该长度后自动触发一次记忆压缩</div></div>' +
+      '<div style="margin-bottom:12px;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">压缩后保留最近消息数</div>' +
+        '<input type="number" id="memKeepInput" value="' + keep + '" min="1" max="100" onchange="saveMemField(\'' + k + '\',\'memKeepRecent\',parseInt(this.value,10)||10)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;">' +
+        '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">更早的消息会被压缩成记忆摘要（图片消息无法恢复）</div></div>' +
+      '<div style="margin-bottom:12px;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">总结模式</div><div style="display:flex;gap:8px;">' +
+        modeBtn('persona', '保留人设') + modeBtn('balanced', '精简事件') + modeBtn('minimal', '极简') +
+      '</div></div>' +
+      '<div style="margin-bottom:12px;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">独立记忆模型（留空使用全局API）</div>' +
+        '<input type="text" id="memApiBaseInput" value="' + escapeHtml(cfg.memApiBase || '') + '" placeholder="API地址" onchange="saveMemField(\'' + k + '\',\'memApiBase\',this.value.trim())" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;margin-bottom:6px;">' +
+        '<input type="text" id="memApiKeyInput" value="' + escapeHtml(cfg.memApiKey || '') + '" placeholder="API密钥" onchange="saveMemField(\'' + k + '\',\'memApiKey\',this.value.trim())" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;margin-bottom:6px;">' +
+        '<input type="text" id="memApiModelInput" value="' + escapeHtml(cfg.memModel || '') + '" placeholder="模型名称" onchange="saveMemField(\'' + k + '\',\'memModel\',this.value.trim())" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:14px;">' +
+      '</div>' +
+      sumHtml +
+      '<div style="display:flex;gap:8px;">' +
+        '<button onclick="manualMemCompress(\'' + k + '\')" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">立即总结</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
 function saveGroupChats() { try { localStorage.setItem('echo_group_chats', JSON.stringify(groupChats)); } catch(e) {} }
 function saveSessionGroups() { try { localStorage.setItem(SESSION_GROUP_KEY, JSON.stringify(sessionGroups)); } catch(e) {} }
 // 分组辅助函数
@@ -4762,6 +5003,10 @@ function renderChat() {
   let lastDate = '';
   msgs.forEach(m => {
     if (m._hidden || m._internal) return; // 跳过内部循环提示消息
+    if (m._memNotice) {
+      html += '<div style="text-align:center;padding:10px 24px;margin:8px 0;font-size:12px;color:var(--text-tertiary);background:var(--bg-secondary);border-radius:10px;line-height:1.6;word-break:break-all;">' + escapeHtml(m.text || '') + '</div>';
+      return;
+    }
     const d = new Date(m.time);
     const dateStr = (d.getMonth()+1) + '/' + d.getDate();
     if (dateStr !== lastDate) {
@@ -4991,7 +5236,10 @@ const defaultChatConfig = {
   avatarSize: 36, avatarRadius: 50, bubbleGap: 14, timeMargin: 4,
   meBubbleColor: '', aiBubbleColor: '', bgImage: '',
   bgOpacity: 100, inputGlass: 0, bubbleGlass: 0,
-  meTextColor: '', aiTextColor: ''
+  meTextColor: '', aiTextColor: '',
+  // v77.66：会话记忆压缩（私信）
+  memCompress: false, memThreshold: 8000, memMode: 'balanced', memKeepRecent: 10,
+  memApiBase: '', memApiKey: '', memModel: ''
 };
 function getChatConfig(charId) {
   try {
@@ -7186,6 +7434,9 @@ async function generateChatReply(charId, images, userText, _roundCount) {
   // 注入会话记忆（曾分享过的帖子摘要）
   const memText = getSharedPostMemoryText(charId);
   if (memText) sysPrompt += memText;
+  // v77.66：注入已压缩的会话记忆摘要（早期对话）
+  const memSum = chatMemories[charId];
+  if (memSum && memSum.text) sysPrompt += '\n【历史对话摘要（早期对话已被压缩，仅作背景参考，不要与当前对话混淆）】\n' + memSum.text;
   // 注入最近分享帖子的页面环境上下文（供点赞工具别名寻址）
   const lastPostCard = recentMsgs.slice().reverse().find(m => m.postCard || m.type === 'post_card' || (m.text && m.text.indexOf('帖子卡片') >= 0));
   if (lastPostCard && lastPostCard.postId) {
@@ -7786,6 +8037,8 @@ async function generateChatReply(charId, images, userText, _roundCount) {
     saveChatSessions();
     renderChat();
     renderNotifications();
+    // v77.66：自动检查会话记忆压缩
+    checkChatMemCompress(charId);
     // 下限循环调度：如果本轮输出条数未达到下限，继续调用AI
     const minSen = getCharMinSentences(char);
     const maxSen = getCharMaxSentences(char);
@@ -8058,6 +8311,9 @@ async function generateGroupChatReply(gid, images, userText) {
         if (member.groupPersona || char.persona) sysPrompt += '\n角色人设：' + (member.groupPersona || char.persona || char.personality || '');
         if (si > 0) sysPrompt += '\n【重要】这是你本轮的第' + (si+1) + '句话，请继续说，不要重复之前的内容，只回复1句话。';
         
+        // v77.66：注入已压缩的群聊记忆摘要（早期对话）
+        const memSumG = g.summary;
+        if (memSumG && memSumG.text) sysPrompt += '\n【历史对话摘要（早期对话已被压缩，仅作背景参考，不要与当前对话混淆）】\n' + memSumG.text;
         messages.push({ role: 'system', content: sysPrompt });
         recentMsgs.forEach(function(m, idx) {
           if (m._hidden || m._internal) return;
@@ -8169,6 +8425,8 @@ async function generateGroupChatReply(gid, images, userText) {
   
   if (typingStatus) typingStatus.style.display = 'none';
   renderNotifications();
+  // v77.66：自动检查群聊记忆压缩
+  checkGroupMemCompress(gid);
   xyEndGen();
 }
 
@@ -8220,6 +8478,10 @@ function renderGroupChatMessages(g) {
   let lastDate = '';
   g.messages.forEach(function(m) {
     if (m._hidden || m._internal) return;
+    if (m._memNotice) {
+      html += '<div style="text-align:center;padding:10px 24px;margin:8px 0;font-size:12px;color:var(--text-tertiary);background:var(--bg-secondary);border-radius:10px;line-height:1.6;word-break:break-all;">' + escapeHtml(m.text || '') + '</div>';
+      return;
+    }
     const d = new Date(m.time);
     const dateStr = (d.getMonth()+1) + '/' + d.getDate();
     if (dateStr !== lastDate) {
@@ -8342,6 +8604,8 @@ function renderGroupSettings() {
         '<input type="range" min="10" max="100" step="5" value="' + (s.bgOpacity||100) + '" oninput="setGroupBgOpacity(this.value)">' +
       '</div>' +
     '</div>';
+    // v77.66：会话记忆压缩设置
+    html += memCompressBlockHTML('group', s, g.summary || null);
     // 保存设置按钮（v77.48）
     html += '<div style="margin:0 16px 20px;">' +
       '<button onclick="saveGroupSettings()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">💾 保存设置</button>' +
@@ -8439,6 +8703,8 @@ function renderGroupSettings() {
       '<label class="toggle-switch"><input type="checkbox" ' + (s.widerBubble?'checked':'') + ' onchange="setGroupWiderBubble(this.checked)"><span class="toggle-slider"></span></label>' +
     '</div>' +
   '</div>';
+  // v77.66：会话记忆压缩设置
+  html += memCompressBlockHTML('group', s, g.summary || null);
   // 保存设置按钮（v77.48：统一保存文本输入，避免失焦漏存）
   html += '<div style="margin:0 16px 20px;">' +
     '<button onclick="saveGroupSettings()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">💾 保存设置</button>' +
@@ -15008,6 +15274,8 @@ function renderChatSettings() {
     '<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">显示在会话列表的标题，例如给好友一个专属备注名</div>' +
     '<button onclick="saveChatTheme()" style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">💾 保存主题</button>' +
   '</div>';
+  // v77.66：会话记忆压缩设置
+  html += memCompressBlockHTML('chat', getChatConfig(charId), chatMemories[charId] || null);
   // 回复设置
   html += '<div style="margin:0 16px 8px;font-size:13px;color:var(--text-tertiary);">回复设置</div>';
   html += '<div style="background:var(--bg-secondary);border-radius:12px;margin:0 16px 20px;overflow:hidden;">';
@@ -23516,7 +23784,7 @@ function exportAllData() {
     const pkg = {
       app: 'xingyu',
       type: 'full-backup',
-      version: 'v77.65',
+      version: 'v77.66',
       exportedAt: new Date().toISOString(),
       data: data
     };
