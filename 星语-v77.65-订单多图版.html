@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>星语 V77.47 被服务背景修复版</title>
+<title>星语 V77.65 订单多图版</title>
 <link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
 <style>
 /* ===== CSS Variables & Theme ===== */
@@ -1088,6 +1088,11 @@ section[data-route="home"] #homeFeed { position:relative; flex:1; overflow:auto;
 .xy-chat-input-row { display:flex; gap:8px; padding-top:10px; border-top:1px solid var(--border, #eee); }
 .xy-chat-input { flex:1; height:38px; padding:0 12px; border:1px solid var(--border, #ddd); border-radius:19px; font-size:14px; box-sizing:border-box; background:var(--bg, #fff); color:var(--text-primary); }
 .xy-chat-send { width:38px; height:38px; border-radius:50%; background:var(--accent, #576b95); color:#fff; border:none; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.xy-hist-act { border:none; background:transparent; color:var(--text-tertiary, #999); font-size:11px; padding:2px 8px; border-radius:6px; cursor:pointer; font-family:inherit; }
+.xy-hist-act:hover { background:var(--bg-secondary, #f0f0f0); color:var(--accent, #576b95); }
+.xy-hist-cb { width:20px; height:20px; border-radius:50%; border:2px solid var(--border, #ddd); display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; align-self:center; background:transparent; box-sizing:border-box; }
+.xy-hist-cb.on { border-color:var(--accent, #576b95); background:var(--accent, #576b95); }
+.xy-hist-actions { display:flex; gap:6px; margin-top:4px; }
 
 /* 运势卡片 */
 .xy-fortune-card { text-align:center; padding:20px; }
@@ -1593,15 +1598,12 @@ img.x-emoji {
       <span>回复 <span id="replyToName"></span></span>
       <button class="reply-mode-cancel" id="replyCancel">取消</button>
     </div>
-    <div class="comment-img-preview hidden" id="commentImgPreview">
-      <img id="commentImgPreviewImg" src="" alt="">
-      <button class="comment-img-remove" id="commentImgRemove">×</button>
-    </div>
+    <div class="comment-img-preview hidden" id="commentImgPreview"></div>
     <div class="comment-bar" id="commentBar">
       <button class="comment-img-btn" id="commentImgBtn" aria-label="添加图片">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       </button>
-      <input type="file" id="commentImgInput" accept="image/*" style="display:none">
+      <input type="file" id="commentImgInput" accept="image/*" multiple style="display:none">
       <input type="text" class="comment-input" id="commentInput" placeholder="发表评论...">
       <div id="commentMentionPanel" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--bg-elevated);border-radius:12px 12px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);max-height:240px;overflow-y:auto;z-index:100;padding:8px 0;">
         <div style="padding:8px 16px;font-size:12px;color:var(--text-tertiary);">选择要@的好友（转正角色）</div>
@@ -1677,7 +1679,7 @@ img.x-emoji {
       <textarea id="composeOtherText" placeholder="分享此刻的心情..." style="width:100%;min-height:120px;margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text-primary);font-size:15px;line-height:1.6;resize:vertical;box-sizing:border-box;"></textarea>
       <div id="composeOtherImgPreview" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;"></div>
     </div>
-    <input type="file" id="composeImgInput" accept="image/*" style="display:none">
+    <input type="file" id="composeImgInput" accept="image/*" multiple style="display:none">
     <input type="file" id="composeOtherImgInput" accept="image/*" multiple style="display:none">
     <div class="compose-toolbar">
       <button class="toolbar-btn" id="composeImgBtn" aria-label="添加图片">
@@ -1786,7 +1788,7 @@ img.x-emoji {
       <div class="chat-plus-btn" title="添加内容" onclick="toggleChatPlusMenu()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
-      <input type="file" id="chatImgInput" accept="image/*" style="display:none">
+      <input type="file" id="chatImgInput" accept="image/*" multiple style="display:none">
       <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." autocomplete="off">
       <div class="chat-model-btn" id="chatModelBtn" onclick="toggleModelDropdown()" title="切换模型">模型</div>
       <button class="chat-send-btn" id="chatSendBtn" onclick="if(xyGenBusy){xyStopGen();return;}sendChatFromInput()">
@@ -2635,7 +2637,7 @@ img.x-emoji {
       <textarea id="diaryContentInput" placeholder="写下今天的故事..."></textarea>
       <div style="margin-top:12px;">
         <button onclick="diaryPickImage()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">添加图片</button>
-        <input type="file" id="diaryImageInput" accept="image/*" style="display:none;" onchange="diaryImageSelected(event)" />
+        <input type="file" id="diaryImageInput" accept="image/*" multiple style="display:none;" onchange="diaryImageSelected(event)" />
       </div>
       <div id="diaryImagePreview" style="margin-top:10px;"></div>
       <div style="margin-top:12px;font-size:11px;color:var(--text-tertiary);" id="diaryWordCount">0字</div>
@@ -2667,7 +2669,7 @@ img.x-emoji {
       <textarea id="shareContentInput" placeholder="分享点什么..." style="width:100%;min-height:150px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text-primary);font-size:15px;line-height:1.6;resize:vertical;box-sizing:border-box;"></textarea>
       <div style="margin-top:12px;">
         <button onclick="sharePickImage()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">添加图片</button>
-        <input type="file" id="shareImageInput" accept="image/*" style="display:none;" onchange="shareImageSelected(event)" />
+        <input type="file" id="shareImageInput" accept="image/*" multiple style="display:none;" onchange="shareImageSelected(event)" />
       </div>
       <div id="shareImagePreview" style="margin-top:10px;"></div>
     </div>
@@ -2754,7 +2756,7 @@ img.x-emoji {
         <button class="compose-icon-btn" onclick="document.getElementById('noteImgInput').click()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
-        <input type="file" id="noteImgInput" accept="image/*" style="display:none" onchange="handleNoteImage(event)">
+        <input type="file" id="noteImgInput" accept="image/*" multiple style="display:none" onchange="handleNoteImage(event)">
       </div>
     </div>
   </section>
@@ -4508,11 +4510,19 @@ function resolveCharUid(nameOrId) {
   try { localStorage.setItem(UID_MIGRATE_MAP_KEY, JSON.stringify(map)); } catch(e) {}
   return nu;
 }
+// v77.64：转正=互关。是否关注该角色（following 存昵称，兼容 id/uid 匹配）
+function isFollowingChar(ch) {
+  if (!ch) return false;
+  try {
+    return following.indexOf(ch.name) >= 0 || following.indexOf(ch.uid) >= 0 || following.indexOf(ch.id) >= 0;
+  } catch(e) { return false; }
+}
 function ensureCharacter(name, avatar, color) {
   // 先按名字查重，避免同一角色重复建档
   let exist = characters.find(c => c.name === name);
   if (exist) return exist;
-  const ch = { id:'buddy_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), uid:genUid(), name:name, avatar:avatar||'', avatarColor:color||avatarColor(name), persona:'', bio:'', memory:'', promoted:true, createdAt:Date.now() };
+  // v77.64：创建≠转正，promoted 默认 false（转正只由关注/互关触发）
+  const ch = { id:'buddy_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), uid:genUid(), name:name, avatar:avatar||'', avatarColor:color||avatarColor(name), persona:'', bio:'', memory:'', promoted:false, createdAt:Date.now() };
   characters.push(ch);
   saveCharacters();
   return ch;
@@ -4676,6 +4686,28 @@ function renderChat() {
     }
     // 渲染群聊消息
     renderGroupChatMessages(g);
+    // v77.62：多人游戏顶栏注入 重新开始/重新玩一把 按钮
+    const actionsEl = document.querySelector('.chat-actions');
+    if (actionsEl) {
+      actionsEl.querySelectorAll('.game-ctl-btn').forEach(function(b){ b.remove(); });
+      const isGame = g.settings && (g.settings.gameType === 'turtle' || g.settings.gameType === 'custom');
+      if (isGame) {
+        const btn = document.createElement('div');
+        btn.className = 'chat-action-btn game-ctl-btn';
+        if (g._gameEnded) {
+          btn.title = '重新玩一把（保留上下文）';
+          btn.style.color = 'var(--accent)';
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+          btn.onclick = function(){ replayMultiGame(); };
+        } else {
+          btn.title = '重新开始（清空上下文）';
+          btn.style.color = 'var(--text-tertiary)';
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+          btn.onclick = function(){ restartMultiGame(); };
+        }
+        actionsEl.insertBefore(btn, actionsEl.firstChild);
+      }
+    }
     return;
   }
   const char = getCharacter(currentChatId);
@@ -5154,13 +5186,14 @@ function showShareSelectModal() {
   if (!msg && !post) return;
   // 数据源：所有已有私信会话的角色 + 所有群聊
   const sessionIds = Object.keys(chatSessions || {});
-  const sessionChars = sessionIds.map(id => getCharacter(id)).filter(Boolean);
+  // v77.64：分享只读互关状态，未关注的旧会话角色不出现（私信记录仍保留，重新关注即恢复）
+  const sessionChars = sessionIds.map(id => getCharacter(id)).filter(Boolean).filter(function(c){ return isFollowingChar(c); });
   // v77.48：过滤掉游戏群聊（订单模块内部内容，不同步到分享弹窗）
   const groupList = Object.values(groupChats || {}).filter(function(g){ return !(g.settings && (g.settings.gameType === 'turtle' || g.settings.gameType === 'custom')); });
   const otherChars = sessionChars;
   if (otherChars.length === 0 && groupList.length === 0) { showToast('暂无私信会话和群聊'); return; }
   const recent = JSON.parse(localStorage.getItem('echo_recent_share') || '[]');
-  const recentChars = recent.map(id => getCharacter(id)).filter(Boolean);
+  const recentChars = recent.map(id => getCharacter(id)).filter(Boolean).filter(function(c){ return isFollowingChar(c); });
   let html = '<div style="padding:16px;">' +
     '<div style="font-size:15px;font-weight:600;margin-bottom:12px;">分享到...</div>' +
     '<div style="background:var(--bg-secondary);border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:13px;color:var(--text-secondary);max-height:90px;overflow-y:auto;display:flex;gap:8px;align-items:flex-start;">';
@@ -8143,12 +8176,35 @@ async function generateGroupChatReply(gid, images, userText) {
 // (已在内部catch中处理，此处保留结构完整性)
 
 let chatAttachments = [];
+// v77.63：通用图片压缩——超600KB压缩到maxW宽JPEG，防止多张大图撑爆localStorage配额
+function compressImageDataUrl(dataUrl, maxW, q1, q2) {
+  return new Promise(function(resolve) {
+    if (!dataUrl || dataUrl.length <= 600 * 1024) { resolve(dataUrl); return; }
+    const img = new Image();
+    img.onload = function() {
+      try {
+        const MAX_W = maxW || 800;
+        let w = img.width, h = img.height;
+        if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        let out = canvas.toDataURL('image/jpeg', q1 || 0.7);
+        if (out.length > 500 * 1024) out = canvas.toDataURL('image/jpeg', q2 || 0.5);
+        resolve(out);
+      } catch(err) { resolve(dataUrl); }
+    };
+    img.onerror = function() { resolve(dataUrl); };
+    img.src = dataUrl;
+  });
+}
 function addChatAttachment(file) {
   if (!file) return;
   if (chatAttachments.length >= 9) { showToast('最多添加9张图片'); return; }
   const reader = new FileReader();
-  reader.onload = function(e) {
-    chatAttachments.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2,6), data: e.target.result });
+  reader.onload = async function(e) {
+    const data = await compressImageDataUrl(e.target.result, 800);
+    chatAttachments.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2,6), data: data });
     renderChatAttachments();
   };
   reader.readAsDataURL(file);
@@ -8488,25 +8544,76 @@ function finishMultiGameCore(g, byAuto) {
   if (typeof renderChat === 'function') renderChat();
   return tipMsg;
 }
-// 用户手动结束游戏
+// 用户手动结束游戏（v77.62：结束后留在会话内，可重新玩一把）
 function endMultiGame() {
   const g = getGroupChat(currentGroupId);
   if (!g) return;
   if (!confirm('确定结束本局游戏吗？')) return;
   const tipMsg = finishMultiGameCore(g, false);
-  showToast('游戏结束' + (tipMsg || ''));
-  exitGameChatToOrders();
+  showToast('游戏结束' + (tipMsg || '') + '，可点顶栏 ↻ 重新玩一把');
+}
+// v77.62：多人游戏 重新开始（清空上下文，成员/主持人不变，重新开局）
+function restartMultiGame() {
+  const g = getGroupChat(currentGroupId);
+  if (!g) return;
+  if (!confirm('确定重新开始本局游戏？将清空当前游戏的全部聊天记录（成员与主持人不变），从零重新开局。')) return;
+  g.messages = [];
+  g._gameEnded = false;
+  g._gameEnding = false;
+  g._gameRound = 0;
+  // 关联订单恢复进行中（已付门票不重复扣）
+  const orderId = g.settings && g.settings.gameOrderId;
+  if (orderId) {
+    loadOrders();
+    const order = ordersStore.find(function(o){ return o.id === orderId; });
+    if (order) { order.status = 'active'; order.updateTime = Date.now(); saveOrders(); }
+  }
+  saveGroupChats();
+  renderChat();
+  _kickOffGameRound(g, true);
+}
+// v77.62：多人游戏 重新玩一把（保留完整上下文，仅重置游戏状态机，续玩）
+function replayMultiGame() {
+  const g = getGroupChat(currentGroupId);
+  if (!g) return;
+  if (!confirm('带着当前聊天记录重新玩一局？（历史对话全部保留，主持人会重新开局）')) return;
+  g._gameEnded = false;
+  g._gameEnding = false;
+  g._gameRound = (g._gameRound || 0) + 1;
+  const orderId = g.settings && g.settings.gameOrderId;
+  if (orderId) {
+    loadOrders();
+    const order = ordersStore.find(function(o){ return o.id === orderId; });
+    if (order) { order.status = 'active'; order.updateTime = Date.now(); saveOrders(); }
+  }
+  g.messages.push({ id: 'sys_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), from: 'system', text: '🔄 第' + (g._gameRound + 1) + '局开始！主持人请按规则重新开局...', time: Date.now(), _internal: true });
+  saveGroupChats();
+  renderChat();
+  _kickOffGameRound(g, false);
+}
+// 开局触发：赚钱端/AI主持由主持人自动出题；花钱端用户主持则提示用户出题
+function _kickOffGameRound(g, isRestart) {
+  if (!g) return;
+  const direction = g.settings ? (g.settings.gameDirection || 'pay') : 'pay';
+  const needHost = direction === 'earn' || (g.settings && g.settings.gameNeedHost);
+  if (needHost) {
+    const gid = g.id;
+    setTimeout(function(){ generateTurtleHostPuzzle(gid); }, 800);
+  } else {
+    const isCustom = g.settings && g.settings.gameType === 'custom';
+    g.messages.push({ id: 'sys_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), from: 'system', text: isRestart
+      ? (isCustom ? '🎲 游戏已重新开始！你是主持人，请在输入框中描述游戏开场与背景。' : '🐢 海龟汤新一局开始！请在输入框中描述故事背景（汤面），AI玩家们会来推理。')
+      : (isCustom ? '🎲 新一局开始！你是主持人，请继续主持（或重新描述背景）。' : '🐢 新一局开始！请在输入框中给出新的汤面。'), time: Date.now(), _internal: true });
+    saveGroupChats();
+    renderChat();
+  }
 }
 // v77.48：AI 判定答案揭晓后自动结束（主持人回复带 [GAME_OVER] 标记触发）
 function autoEndMultiGame(gid) {
   const g = getGroupChat(gid);
   if (!g) return;
   const tipMsg = finishMultiGameCore(g, true);
-  showToast('🎉 游戏结束' + (tipMsg || ''));
-  setTimeout(function(){
-    // 用户还停留在该群聊时，自动退回订单主页
-    if (currentGroupId === gid) exitGameChatToOrders();
-  }, 2500);
+  showToast('🎉 游戏结束' + (tipMsg || '') + '，可点顶栏 ↻ 重新玩一把');
 }
 // v77.48：从游戏群聊退出并回到订单主页（手动重置路由栈，避免层级污染）
 function exitGameChatToOrders() {
@@ -8526,7 +8633,8 @@ function exitGameChatToOrders() {
   if (retRoute === 'profile' && typeof renderProfile === 'function') renderProfile();
   else if (typeof renderHome === 'function') renderHome();
   window.scrollTo(0, 0);
-  setTimeout(function(){ openOrders(); }, 150);
+  // v77.64：去掉 150ms 延迟，同步弹出订单中心，避免先闪出首页再弹订单的闪屏
+  openOrders();
 }
 // v77.48：从订单记录进入游戏群聊
 function openMultiGameFromOrder(groupId) {
@@ -8733,8 +8841,8 @@ function addGroupMember() {
   const g = getGroupChat(currentGroupId);
   if (!g) return;
   if (g.members.length >= 100) { showToast('群聊人数已达上限100人'); return; }
-  // v73修复：候选列表改为全部角色（不再只筛 promoted，新建角色也能拉入群聊）
-  const allChars = characters.slice();
+  // v77.64：拉人只读互关状态（关注列表），未关注角色需先关注才能拉入
+  const allChars = characters.filter(function(c){ return isFollowingChar(c); });
   const existingUids = g.members.map(function(m){return m.uid;});
   // 去重兼容：成员可能存 id / uid / 昵称，三种都算已存在
   const existingKeys = {};
@@ -8742,7 +8850,7 @@ function addGroupMember() {
   const available = allChars.filter(function(c){
     return !(existingKeys[c.id] || existingKeys[c.uid] || existingKeys[c.name]);
   });
-  if (available.length === 0) { showToast('没有可添加的角色'); return; }
+  if (available.length === 0) { showToast('没有可添加的角色（需先关注）'); return; }
   let html = '<div style="padding:16px;"><div style="font-size:15px;margin-bottom:12px;">选择要添加的成员</div><div style="max-height:300px;overflow-y:auto;">';
   available.forEach(function(c) {
     html += '<label style="display:flex;align-items:center;padding:10px;cursor:pointer;border-radius:8px;" class="group-member-check">' +
@@ -9082,6 +9190,7 @@ try { notebookNotes = JSON.parse(localStorage.getItem('notebookNotes') || '{}');
 let currentNotebook = '';
 let currentNoteId = null;
 let currentNoteImage = null;
+let currentNoteImages = []; // v77.63：笔记多图
 const hotTopics = [
   { tag:'#今天的晚霞', count:'2.3万 讨论' },
   { tag:'#一人食', count:'1.8万 讨论' },
@@ -9466,12 +9575,26 @@ function toggleChatPlusMenu() {
     // 关闭其他可能打开的菜单
     const dm = document.getElementById('chatModelDropdown');
     if (dm) dm.classList.add('hidden');
+    // v77.64：打开时挂全局点击监听，点击菜单外空白处关闭
+    document.addEventListener('click', outsideChatPlusClose);
   }
   m.classList.toggle('hidden');
+}
+// v77.64：点击加号菜单外部区域关闭（菜单内点击不关闭）
+function outsideChatPlusClose(ev) {
+  const m = document.getElementById('chatPlusMenu');
+  if (!m) return;
+  const plusBtn = document.querySelector('.chat-plus-btn');
+  if (m.classList.contains('hidden')) return;
+  if (m.contains(ev.target)) return;
+  if (plusBtn && plusBtn.contains(ev.target)) return;
+  m.classList.add('hidden');
+  document.removeEventListener('click', outsideChatPlusClose);
 }
 function closeChatPlusMenu() {
   const m = document.getElementById('chatPlusMenu');
   if (m) m.classList.add('hidden');
+  document.removeEventListener('click', outsideChatPlusClose);
 }
 // 打开发红包弹窗
 function openRedpacketModal() {
@@ -11059,6 +11182,9 @@ function openOrderChat(orderId) {
     // 后台请求API生成简介，完成后替换typing消息
     generateAIIntro(order);
   }
+  // v77.62：防御——若已有订单聊天遮罩未关闭，先移除，避免双遮罩空白覆盖
+  const _prevMask = document.getElementById('orderChatView');
+  if (_prevMask) _prevMask.remove();
   const mask = document.createElement('div');
   mask.id = 'orderChatView';
   // v75修复：z-index 9997 -> 9998（原被订单主页9998盖住，导致匹配后看不到聊天页）
@@ -11143,6 +11269,12 @@ function renderOrderChat() {
       // v76：已完成订单显示"详情"按钮（替代列表详情入口）
       (order.status === 'done' ?
       '<button onclick="openOrderDetail(\'' + order.id + '\')" style="background:none;border:none;color:var(--text-primary);font-size:16px;cursor:pointer;width:32px;height:36px;display:flex;align-items:center;justify-content:center;">📋</button>' : '') +
+      // v77.62：重新开始/重新玩一把/停止本次服务（订单端）
+      (order.closed ? '' :
+        (order.status === 'active' ?
+        '<button onclick="restartOrderChat()" title="重新开始（清空上下文）" style="background:none;border:none;color:var(--text-tertiary);font-size:18px;cursor:pointer;width:34px;height:36px;display:flex;align-items:center;justify-content:center;">↺</button>' :
+        '<button onclick="replayOrderChat()" title="重新玩一把（保留上下文）" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:0 6px;height:36px;display:flex;align-items:center;justify-content:center;">↻ 再来</button>' +
+        '<button onclick="closeOrderService()" title="停止本次服务" style="background:none;border:none;color:var(--danger,#ff5252);font-size:13px;cursor:pointer;padding:0 6px;height:36px;display:flex;align-items:center;justify-content:center;">结束</button>')) +
       '<button onclick="openOrderChatSettings()" style="background:none;border:none;color:var(--text-primary);font-size:20px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">⋯</button>' +
     '</div>' +
     // 消息区（v77修复：背景固定在底层，不随消息滚动；v77.19修复：absolute 限定在消息区内，不再fixed全屏盖住顶栏/输入区）
@@ -11151,23 +11283,21 @@ function renderOrderChat() {
       (opacityStyle && bgStyle ? '<div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;background:var(--bg);' + opacityStyle + 'z-index:1;"></div>' : '') +
       '<div style="position:relative;z-index:2;">' + msgsHtml + '</div>' +
     '</div>' +
-    // 输入区（v77新增：图片附件按钮 + 已选图预览）
+    // 输入区（v77新增：图片附件按钮 + 已选图预览）v77.62：停止服务后锁定输入区，显示已结束横幅
+    (order.closed ?
+    '<div style="flex-shrink:0;padding:16px 12px;background:var(--tabbar-bg);border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--text-tertiary);">此服务已结束，无法继续发送消息</div>' :
     (order.status === 'active' ?
     '<div style="flex-shrink:0;padding:10px 12px;background:var(--tabbar-bg);border-top:1px solid var(--border);">' +
-      // v77：已选图片预览
-      (_pendingOrderImg ? '<div style="display:flex;align-items:center;gap:8px;padding-bottom:8px;">' +
-        '<img src="' + _pendingOrderImg + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover;">' +
-        '<span style="font-size:12px;color:var(--text-tertiary);flex:1;">图片已添加，输入文字后发送</span>' +
-        '<button onclick="cancelPendingOrderImg()" style="background:none;border:none;color:var(--text-tertiary);font-size:16px;cursor:pointer;">✕</button>' +
-      '</div>' : '') +
+      // v77.65：已选图片预览（多图，横向缩略图）
+      pendingImgsPreviewHtml(_pendingOrderImgs, 'removePendingOrderImg') +
       '<div style="display:flex;gap:8px;align-items:center;">' +
-        '<input type="file" id="orderChatImgInput" accept="image/*" style="display:none;" onchange="orderPickImg(this)">' +
+        '<input type="file" id="orderChatImgInput" accept="image/*" multiple style="display:none;" onchange="orderPickImg(this)">' +
         '<button onclick="document.getElementById(\'orderChatImgInput\').click()" style="background:none;border:none;font-size:20px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📷</button>' +
         '<input id="orderChatInput" type="text" placeholder="和 ' + escapeHtml(order.aiName) + ' 说点什么..." value="' + (sessionStorage.getItem('xy_order_input_' + order.id) || '') + '" style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:14px;outline:none;color:var(--text-primary);font-family:inherit;" oninput="sessionStorage.setItem(\'xy_order_input_' + order.id + '\', this.value)">' +
         '<button id="orderChatSendBtn" onclick="if(xyGenBusy&&xyGenScene===\'order\'){xyStopGen();return;}sendOrderMessage()" style="padding:10px 18px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">发送</button>' +
         '<button onclick="finishOrder()" style="padding:10px 14px;border:none;border-radius:20px;background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">完成服务</button>' +
       '</div>' +
-    '</div>' : '') ;
+    '</div>' : '')) ;
   // v77.16修复：重绘后自动滚动到消息列表底部（防止发送后页面跳回顶部，用户看不到最新消息）
   const msgListEl = document.getElementById('orderMsgList');
   if (msgListEl) { msgListEl.scrollTop = msgListEl.scrollHeight; }
@@ -11177,6 +11307,60 @@ function renderOrderChat() {
     setTimeout(function(){ const i = document.getElementById('orderChatInput'); if (i) i.focus(); }, 100);
   }
 }
+// ===== v77.62：订单/被服务 重新开始 / 重新玩一把 / 停止本次服务 =====
+function _curOrder() {
+  if (currentOrderId) return ordersStore.find(o => o.id === currentOrderId);
+  if (currentServeId) return ordersStore.find(o => o.id === currentServeId);
+  return null;
+}
+function _rerenderCurChat() {
+  if (currentOrderId) { if (document.getElementById('orderChatView')) renderOrderChat(); }
+  else if (currentServeId) { if (document.getElementById('serveChatView')) renderServeChat(); }
+}
+// 重新开始（悔棋/清上下文）：清空全部消息，保留角色，服务状态恢复进行中
+function restartOrderChat() {
+  const order = _curOrder();
+  if (!order) return;
+  if (!confirm('确定重新开始？将清空本次服务的全部聊天记录（角色不变），从零重新开始。')) return;
+  order.messages = [];
+  order.status = 'active';
+  order.paid = false;
+  delete order.closed;
+  order.restartCount = (order.restartCount || 0) + 1;
+  order.updateTime = Date.now();
+  saveOrders();
+  _rerenderCurChat();
+  showToast('已重新开始服务，聊天记录已清空');
+}
+// 被服务端重新开始（复用同一逻辑，入口不同避免歧义）
+function restartServeChat() { restartOrderChat(); }
+// 重新玩一把（增值续玩）：保留全部上下文，状态恢复进行中，可再次付费
+function replayOrderChat() {
+  const order = _curOrder();
+  if (!order) return;
+  if (!confirm('带着当前聊天记录重新玩一把？（历史对话全部保留，新一轮可再次付费）')) return;
+  order.status = 'active';
+  order.paid = false;
+  delete order.closed;
+  order.replayCount = (order.replayCount || 0) + 1;
+  order.updateTime = Date.now();
+  saveOrders();
+  _rerenderCurChat();
+  showToast('新一轮服务已开始，历史记录保留');
+}
+function replayServeChat() { replayOrderChat(); }
+// 停止本次服务：锁定会话，不能再发消息
+function closeOrderService() {
+  const order = _curOrder();
+  if (!order) return;
+  if (!confirm('确定停止本次服务？会话将被锁定，不能再发送消息（可查看历史记录）。')) return;
+  order.closed = true;
+  order.updateTime = Date.now();
+  saveOrders();
+  _rerenderCurChat();
+  showToast('本次服务已结束');
+}
+function closeServeService() { closeOrderService(); }
 // v75新增：订单聊天设置弹窗（背景/透明度/说话次数/风格偏好）
 function openOrderChatSettings() {
   const order = ordersStore.find(o => o.id === currentOrderId);
@@ -11386,19 +11570,13 @@ function showImagePreview(src) {
   document.body.appendChild(mask);
 }
 // v77修复：订单聊天待发图片（createObjectURL方案，避免大base64撑爆内存崩溃）
-let _pendingOrderImg = null;
-function orderPickImg(input) {
-  if (!input || !input.files || !input.files[0]) return;
-  const file = input.files[0];
+// v77.65：订单系统通用图片压缩（多图选图，逻辑与私信/测试页一致：小图原样、大图压缩到800px）
+function pickOrderImg(file, cb) {
   if (file.size > 15 * 1024 * 1024) { showToast('图片不能超过15MB'); return; }
-  // v77.14修复：复刻测试页视觉测试的传图方式——FileReader 原始 dataURL（不压缩），测试页就是这样做通视觉模型的
-  // 大图（>800KB）才压缩，小图保留原始格式（模型兼容性最好）
   const reader = new FileReader();
   reader.onload = function(ev) {
     const rawDataUrl = ev.target.result;
-    // 检查 base64 长度，超 600KB 才压缩（防止 localStorage 溢出，同时保持小图原样）
     if (rawDataUrl.length > 600 * 1024) {
-      // 压缩
       const img = new Image();
       img.onload = function() {
         try {
@@ -11410,35 +11588,46 @@ function orderPickImg(input) {
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           let dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           if (dataUrl.length > 500 * 1024) dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-          _pendingOrderImg = dataUrl;
-          showToast('图片已添加（已压缩），输入文字后发送');
-          renderOrderChat();
-        } catch(err) {
-          _pendingOrderImg = rawDataUrl;
-          showToast('图片已添加，输入文字后发送');
-          renderOrderChat();
-        }
+          cb(dataUrl);
+        } catch(err) { cb(rawDataUrl); }
       };
-      img.onerror = function() {
-        _pendingOrderImg = rawDataUrl;
-        showToast('图片已添加，输入文字后发送');
-        renderOrderChat();
-      };
+      img.onerror = function() { cb(rawDataUrl); };
       img.src = rawDataUrl;
     } else {
-      // 小图：直接用原始 dataURL（和测试页完全一致）
-      _pendingOrderImg = rawDataUrl;
-      showToast('图片已添加，输入文字后发送');
-      renderOrderChat();
+      cb(rawDataUrl);
     }
   };
   reader.onerror = function() { showToast('图片读取失败'); };
   reader.readAsDataURL(file);
+}
+// v77.65：待发多图预览通用HTML（横向滚动缩略图，每张可删）
+function pendingImgsPreviewHtml(arr, removeFn) {
+  if (!arr || arr.length === 0) return '';
+  return '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;">' +
+    arr.map(function(u,i){
+      return '<div style="position:relative;flex-shrink:0;">' +
+        '<img src="' + u + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover;display:block;">' +
+        '<button onclick="' + removeFn + '(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;font-size:11px;line-height:18px;cursor:pointer;padding:0;">✕</button></div>';
+    }).join('') + '</div>';
+}
+let _pendingOrderImgs = [];
+let _pendingServeImgs = [];
+let _pendingCourtImgs = [];
+function orderPickImg(input) {
+  if (!input || !input.files || !input.files.length) return;
+  // v77.65：多图选择，逐张压缩入队（最多9张，与私信一致）
+  Array.from(input.files).forEach(function(file){
+    pickOrderImg(file, function(dataUrl){
+      if (_pendingOrderImgs.length >= 9) { showToast('最多添加9张图片'); return; }
+      _pendingOrderImgs.push(dataUrl);
+      renderOrderChat();
+    });
+  });
   input.value = '';
 }
-// v77新增：取消待发图片
-function cancelPendingOrderImg() {
-  _pendingOrderImg = null;
+// v77.65：移除某张待发图片
+function removePendingOrderImg(i) {
+  if (_pendingOrderImgs[i] !== undefined) _pendingOrderImgs.splice(i, 1);
   renderOrderChat();
 }
 // 发送订单消息（v77新增：支持图片附件）
@@ -11447,20 +11636,25 @@ function sendOrderMessage() {
   const order = ordersStore.find(o => o.id === currentOrderId);
   if (!order) return;
   const text = input ? input.value.trim() : '';
-  const img = _pendingOrderImg;
-  if (!text && !img) return;
-  const msg = { from:'me', text:text, time:Date.now() };
-  if (img) { msg.image = img; _pendingOrderImg = null; }
-  order.messages.push(msg);
+  // v77.65：多图发送——每张图独立气泡，文字独立气泡（与私信一致）
+  const imgs = _pendingOrderImgs.slice();
+  if (!text && imgs.length === 0) return;
+  imgs.forEach(function(u){
+    order.messages.push({ from:'me', text:'', image:u, time:Date.now() });
+  });
+  if (text) {
+    order.messages.push({ from:'me', text:text, time:Date.now() });
+  }
+  _pendingOrderImgs = [];
   order.updateTime = Date.now();
   saveOrders();
   if (input) input.value = '';
   renderOrderChat();
   // v77.43修复：按订单方向分流——serve（被服务=AI求助）走 generateServeReply，否则走 generateOrderReply（AI解答）
   if (order.direction === 'serve') {
-    generateServeReply(order, img ? [img] : null);
+    generateServeReply(order, imgs.length ? imgs : null);
   } else {
-    generateOrderReply(order, img ? [img] : null);
+    generateOrderReply(order, imgs.length ? imgs : null);
   }
 }
 // 生成订单AI回复（独立提示词，不走私信）
@@ -12157,16 +12351,13 @@ function renderCourt() {
     '</div>' +
     '<div style="flex-shrink:0;padding:10px 12px;background:var(--tabbar-bg);border-top:1px solid var(--border);">' +
       // v77：小法庭已选图片预览
-      (_pendingCourtImg ? '<div style="display:flex;align-items:center;gap:8px;padding-bottom:8px;">' +
-        '<img src="' + _pendingCourtImg + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover;">' +
-        '<span style="font-size:12px;color:var(--text-tertiary);flex:1;">图片已添加，输入文字后发言</span>' +
-        '<button onclick="cancelPendingCourtImg()" style="background:none;border:none;color:var(--text-tertiary);font-size:16px;cursor:pointer;">✕</button>' +
-      '</div>' : '') +
+      // v77.65：已选图片预览（多图，横向缩略图）
+      pendingImgsPreviewHtml(_pendingCourtImgs, 'removePendingCourtImg') +
       '<div style="display:flex;gap:8px;align-items:center;">' +
-        '<input type="file" id="courtImgInput" accept="image/*" style="display:none;" onchange="courtPickImg(this)">' +
+        '<input type="file" id="courtImgInput" accept="image/*" multiple style="display:none;" onchange="courtPickImg(this)">' +
         '<button onclick="document.getElementById(\'courtImgInput\').click()" style="background:none;border:none;font-size:20px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📷</button>' +
         '<button onclick="courtAt()" style="background:none;border:none;font-size:18px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-secondary);" title="@ 指定发言人">@</button>' +
-        '<input id="courtInput" type="text" placeholder="向小法庭发言...(@可指定发言人)" value="' + (sessionStorage.getItem('xy_court_input_' + (currentCourtId || courtOrderId || '')) || '') + '" style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:14px;outline:none;color:var(--text-primary);font-family:inherit;" oninput="sessionStorage.setItem(\'xy_court_input_' + (currentCourtId || courtOrderId || '') + '\', this.value)">' +
+        '<input id="courtInput" type="text" placeholder="向小法庭发言...(@可指定发言人)" value="' + (sessionStorage.getItem('xy_court_input_' + ((typeof currentCourtId !== 'undefined' ? currentCourtId : null) || courtOrderId || '')) || '') + '" style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:14px;outline:none;color:var(--text-primary);font-family:inherit;" oninput="sessionStorage.setItem(\'xy_court_input_' + ((typeof currentCourtId !== 'undefined' ? currentCourtId : null) || courtOrderId || '') + '\', this.value)">' +
         '<button onclick="sendCourtMessage(\'me\')" style="padding:10px 16px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">发言</button>' +
         '<button onclick="closeCourt()" style="padding:10px 12px;border:none;border-radius:20px;background:var(--bg-secondary);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit;">结束</button>' +
       '</div>' +
@@ -12178,53 +12369,20 @@ function renderCourt() {
 // v77修复：小法庭待发图片（createObjectURL方案，避免大base64撑爆内存崩溃）
 let _pendingCourtImg = null;
 function courtPickImg(input) {
-  if (!input || !input.files || !input.files[0]) return;
-  const file = input.files[0];
-  if (file.size > 15 * 1024 * 1024) { showToast('图片不能超过15MB'); return; }
-  // v77.14修复：复刻测试页视觉测试传图方式——原始 dataURL（不压缩），大图才压缩
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const rawDataUrl = ev.target.result;
-    if (rawDataUrl.length > 600 * 1024) {
-      const img = new Image();
-      img.onload = function() {
-        try {
-          const MAX_W = 800;
-          let w = img.width, h = img.height;
-          if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          let dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          if (dataUrl.length > 500 * 1024) dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-          _pendingCourtImg = dataUrl;
-          showToast('图片已添加（已压缩），输入文字后发言');
-          renderCourt();
-        } catch(err) {
-          _pendingCourtImg = rawDataUrl;
-          showToast('图片已添加，输入文字后发言');
-          renderCourt();
-        }
-      };
-      img.onerror = function() {
-        _pendingCourtImg = rawDataUrl;
-        showToast('图片已添加，输入文字后发言');
-        renderCourt();
-      };
-      img.src = rawDataUrl;
-    } else {
-      _pendingCourtImg = rawDataUrl;
-      showToast('图片已添加，输入文字后发言');
+  if (!input || !input.files || !input.files.length) return;
+  // v77.65：多图选择，逐张压缩入队（最多9张，与私信一致）
+  Array.from(input.files).forEach(function(file){
+    pickOrderImg(file, function(dataUrl){
+      if (_pendingCourtImgs.length >= 9) { showToast('最多添加9张图片'); return; }
+      _pendingCourtImgs.push(dataUrl);
       renderCourt();
-    }
-  };
-  reader.onerror = function() { showToast('图片读取失败'); };
-  reader.readAsDataURL(file);
+    });
+  });
   input.value = '';
 }
-// v77新增：取消小法庭待发图片
-function cancelPendingCourtImg() {
-  _pendingCourtImg = null;
+// v77.65：移除某张待发图片
+function removePendingCourtImg(i) {
+  if (_pendingCourtImgs[i] !== undefined) _pendingCourtImgs.splice(i, 1);
   renderCourt();
 }
 // v77.06新增：@ 指定发言人（选择角色插入 @名字 到输入框）
@@ -12268,12 +12426,17 @@ function sendCourtMessage(from) {
   const order = ordersStore.find(o => o.id === courtOrderId);
   if (!order) return;
   const text = input ? input.value.trim() : '';
-  const img = _pendingCourtImg;
-  if (!text && !img) return;
+  // v77.65：多图发送——每张图独立发言，文字独立发言（与私信一致）
+  const imgs = _pendingCourtImgs.slice();
+  if (!text && imgs.length === 0) return;
   if (!order.courtMessages) order.courtMessages = [];
-  const msg = { from: from, text: text, time: Date.now() };
-  if (img) { msg.image = img; _pendingCourtImg = null; }
-  order.courtMessages.push(msg);
+  imgs.forEach(function(u){
+    order.courtMessages.push({ from: from, text: '', image: u, time: Date.now() });
+  });
+  if (text) {
+    order.courtMessages.push({ from: from, text: text, time: Date.now() });
+  }
+  _pendingCourtImgs = [];
   saveOrders();
   if (input) input.value = '';
   renderCourt();
@@ -12289,7 +12452,7 @@ function sendCourtMessage(from) {
       const an = order.aiName || '服务方';
       if (atName === jn || an.includes(atName) || atName.includes(an)) atTarget = atName;
     }
-    generateCourtReply(order, img ? [img] : null, atTarget);
+    generateCourtReply(order, imgs.length ? imgs : null, atTarget);
   }
 }
 // 小法官AI回复（用配置的API，模拟调解）
@@ -12783,6 +12946,9 @@ function openServeChat(orderId) {
   const order = ordersStore.find(o => o.id === orderId);
   if (!order) return;
   currentServeId = orderId;
+  // v77.62：防御——若已有被服务聊天遮罩未关闭，先移除，避免双遮罩空白覆盖
+  const _prevMask = document.getElementById('serveChatView');
+  if (_prevMask) _prevMask.remove();
   const mask = document.createElement('div');
   mask.id = 'serveChatView';
   // v75修复：z-index 9997 -> 9998（避免被订单主页9998盖住）
@@ -12841,8 +13007,14 @@ function renderServeChat() {
       '<button onclick="closeServeChat()" style="background:none;border:none;color:var(--text-primary);font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">‹</button>' +
       '<div style="flex:1;text-align:center;">' +
         '<div style="font-size:16px;font-weight:600;color:var(--text-primary);">' + s.icon + ' ' + s.title + '（被服务）</div>' +
-        '<div style="font-size:12px;color:var(--text-tertiary);">' + escapeHtml(order.aiName) + ' 寻求服务 · 赚 ¥' + order.minPrice + '+' + '</div>' +
+        '<div style="font-size:12px;color:var(--text-tertiary);">' + escapeHtml(order.aiName) + ' 寻求服务 · 赚 ¥' + order.minPrice + '+' + (order.closed ? ' · 已结束' : (order.status === 'done' ? ' · 已完成' : '')) + '</div>' +
       '</div>' +
+      // v77.62：重新开始/重新玩一把/停止本次服务（被服务端）
+      (order.closed ? '' :
+        (order.status === 'active' ?
+        '<button onclick="restartServeChat()" title="重新开始（清空上下文）" style="background:none;border:none;color:var(--text-tertiary);font-size:18px;cursor:pointer;width:34px;height:36px;display:flex;align-items:center;justify-content:center;">↺</button>' :
+        '<button onclick="replayServeChat()" title="重新玩一把（保留上下文）" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:0 6px;height:36px;display:flex;align-items:center;justify-content:center;">↻ 再来</button>' +
+        '<button onclick="closeServeService()" title="停止本次服务" style="background:none;border:none;color:var(--danger,#ff5252);font-size:13px;cursor:pointer;padding:0 6px;height:36px;display:flex;align-items:center;justify-content:center;">结束</button>')) +
       '<button onclick="openServeChatSettings()" style="background:none;border:none;color:var(--text-primary);font-size:20px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">⋯</button>' +
     '</div>' +
     '<div style="flex:1;overflow-y:auto;padding:10px 0;position:relative;background:var(--bg);" id="serveMsgList" oncontextmenu="event.preventDefault();showOrderBlankMenu();return false;" ontouchstart="orderBlankLpStart(event)" ontouchmove="orderLpMove(event)" ontouchend="orderLpEnd()" ontouchcancel="orderLpEnd()">' +
@@ -12851,13 +13023,21 @@ function renderServeChat() {
      (serveOpacityStyle && serveBgStyle ? '<div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;background:var(--bg);' + serveOpacityStyle + 'z-index:1;"></div>' : '') +
      '<div style="position:relative;z-index:2;">' + msgsHtml + '</div>' +
     '</div>' +
+    // v77.62：停止服务后锁定输入区
+    (order.closed ?
+    '<div style="flex-shrink:0;padding:16px 12px;background:var(--tabbar-bg);border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--text-tertiary);">此服务已结束，无法继续发送消息</div>' :
     (order.status === 'active' ?
-    '<div style="flex-shrink:0;padding:10px 12px;background:var(--tabbar-bg);border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;">' +
+    '<div style="flex-shrink:0;padding:10px 12px;background:var(--tabbar-bg);border-top:1px solid var(--border);">' +
+      // v77.65：已选图片预览（多图，横向缩略图）
+      pendingImgsPreviewHtml(_pendingServeImgs, 'removePendingServeImg') +
+      '<div style="display:flex;gap:8px;align-items:center;">' +
+      '<input type="file" id="serveChatImgInput" accept="image/*" multiple style="display:none;" onchange="servePickImg(this)">' +
+      '<button onclick="document.getElementById(\'serveChatImgInput\').click()" style="background:none;border:none;font-size:20px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📷</button>' +
       '<input id="serveChatInput" type="text" placeholder="帮 ' + escapeHtml(order.aiName) + ' 完成服务..." value="' + (sessionStorage.getItem('xy_serve_input_' + order.id) || '') + '" style="flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:14px;outline:none;color:var(--text-primary);font-family:inherit;" oninput="sessionStorage.setItem(\'xy_serve_input_' + order.id + '\', this.value)">' +
       '<button id="serveChatSendBtn" onclick="if(xyGenBusy&&xyGenScene===\'serve\'){xyStopGen();return;}sendServeMessage()" style="padding:10px 16px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">发送</button>' +
       '<button onclick="finishServe()" style="padding:10px 12px;border:none;border-radius:20px;background:#34c759;color:#fff;font-size:13px;cursor:pointer;font-family:inherit;">完成服务</button>' +
       '<button onclick="aiRequestArbitration()" style="padding:10px 12px;border:none;border-radius:20px;background:#8b5cf6;color:#fff;font-size:12px;cursor:pointer;font-family:inherit;">⚖️AI申请仲裁</button>' +
-    '</div>' : '') ;
+    '</div>' : '')) ;
   // v77.16修复：重绘后自动滚动到消息列表底部（防止发消息后跳回顶部）
   const serveListEl = document.getElementById('serveMsgList');
   if (serveListEl) { serveListEl.scrollTop = serveListEl.scrollHeight; }
@@ -12896,20 +13076,44 @@ function openServeChatSettings() {
     renderServeChat();
   };
 }
-// 发送被服务消息（AI会自动回复）
+// v77.65：被服务多图选择
+function servePickImg(input) {
+  if (!input || !input.files || !input.files.length) return;
+  Array.from(input.files).forEach(function(file){
+    pickOrderImg(file, function(dataUrl){
+      if (_pendingServeImgs.length >= 9) { showToast('最多添加9张图片'); return; }
+      _pendingServeImgs.push(dataUrl);
+      renderServeChat();
+    });
+  });
+  input.value = '';
+}
+// v77.65：移除某张待发图片
+function removePendingServeImg(i) {
+  if (_pendingServeImgs[i] !== undefined) _pendingServeImgs.splice(i, 1);
+  renderServeChat();
+}
+// 发送被服务消息（AI会自动回复）v77.65：支持多图（每图独立气泡）
 function sendServeMessage() {
   const input = document.getElementById('serveChatInput');
   if (!input) return;
   const text = input.value.trim();
-  if (!text) return;
+  const imgs = _pendingServeImgs.slice();
+  if (!text && imgs.length === 0) return;
   const order = ordersStore.find(o => o.id === currentServeId);
   if (!order) return;
-  order.messages.push({ from:'me', text:text, time:Date.now() });
+  imgs.forEach(function(u){
+    order.messages.push({ from:'me', text:'', image:u, time:Date.now() });
+  });
+  if (text) {
+    order.messages.push({ from:'me', text:text, time:Date.now() });
+  }
+  _pendingServeImgs = [];
   order.updateTime = Date.now();
   saveOrders();
   input.value = '';
   renderServeChat();
-  generateServeReply(order);
+  generateServeReply(order, imgs.length ? imgs : null);
 }
 // AI被服务回复（AI作为被服务方，按服务类型提示词回应）v77.14：复用私信多轮机制
 async function generateServeReply(order, images, _roundCount) {
@@ -13526,7 +13730,7 @@ function navigate(route, params) {
   if (route === 'test') { document.getElementById('testModelName').textContent = config.model || '未配置'; }
   if (route === 'compose') {
     document.getElementById('composeText').focus();
-    pendingComposeImage = null;
+    pendingComposeImages = [];
     selectedTopic = '';
     document.getElementById('composeImgPreview').classList.add('hidden');
     document.getElementById('composePublic').checked = true;
@@ -13786,7 +13990,7 @@ function renderPostCard(p) {
     '</div>' +
     '<div class="post-content">' + escapeHtml(p.content) + '</div>' +
     tagsHtml +
-    (p.image ? '<img class="post-image" src="' + p.image + '" alt="" loading="lazy">' : '') +
+    ((p.images && p.images.length) ? p.images.map(_pi => '<img class="post-image" src="' + _pi + '" alt="" loading="lazy">').join('') : (p.image ? '<img class="post-image" src="' + p.image + '" alt="" loading="lazy">' : '')) +
     '<div class="post-actions">' +
       '<span class="action-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> ' + (p.commentList||[]).length + '</span>' +
       '<span class="action-item ' + (p.liked?'liked':'') + '" onclick="event.stopPropagation();toggleLike(' + p.id + ')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ' + (p.likes||0) + '</span>' +
@@ -13905,6 +14109,9 @@ function toggleFollow() {
   const idx = following.indexOf(authorName);
   if (idx >= 0) {
     following.splice(idx, 1);
+    // v77.64：取关即解除转正（好友身份），私信记录保留
+    const chUn = getCharacter(author) || getCharacterByName(authorName);
+    if (chUn) { chUn.promoted = false; saveCharacters(); }
     recordFollowEvent(authorName, 'unfollow', 'manual'); // 扩展预留：记录取关事件
     showToast('已取消关注，私信仍保留');
   } else {
@@ -14003,6 +14210,9 @@ function unfollowFromProfile() {
   if (!author) return;
   const idx = following.indexOf(author);
   if (idx >= 0) following.splice(idx, 1);
+  // v77.64：取关即解除转正，私信记录保留
+  const chUn2 = getCharacter(author) || getCharacterByName(author);
+  if (chUn2) { chUn2.promoted = false; saveCharacters(); }
   localStorage.setItem('echo_following', JSON.stringify(following));
   updateFollowBtn();
   showToast('已取消关注，私信仍保留');
@@ -14485,12 +14695,13 @@ function openCreateMenu() {
   modal.classList.add('show');
 }
 function openCreateGroupChat(fromCharId) {
-  const promotedChars = characters.filter(function(c){return c.promoted;});
+  // v77.64：建群只读互关状态（关注列表），不读转正标记/私信列表
+  const promotedChars = characters.filter(function(c){ return isFollowingChar(c); });
   let html = '<div style="padding:16px;">';
   html += '<div style="margin-bottom:12px;"><label style="font-size:14px;color:var(--text-secondary);">群聊名称</label><input type="text" id="newGroupName" placeholder="输入群聊名称" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);margin-top:6px;font-family:inherit;font-size:15px;"></div>';
-  html += '<div style="margin-bottom:12px;"><label style="font-size:14px;color:var(--text-secondary);">选择成员（已转正角色）</label>';
+  html += '<div style="margin-bottom:12px;"><label style="font-size:14px;color:var(--text-secondary);">选择成员（已关注好友）</label>';
   if (promotedChars.length === 0) {
-    html += '<div style="padding:12px;text-align:center;color:var(--text-tertiary);font-size:13px;margin-top:6px;">暂无已转正角色，先去创建并关注角色吧</div>';
+    html += '<div style="padding:12px;text-align:center;color:var(--text-tertiary);font-size:13px;margin-top:6px;">暂无已关注好友，去关注角色后即可拉入群聊</div>';
   } else {
     html += '<div id="groupMemberSelect" style="max-height:200px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:10px;padding:8px;">';
     promotedChars.forEach(function(c) {
@@ -15527,6 +15738,7 @@ let currentMomentId = null;
 let momentReplyTarget = null;
 let collapsedMomentCommentIds = {}; // 子评论折叠状态 {commentId: true}
 let momentPendingImage = null;
+let momentPendingImages = []; // v77.63：朋友圈评论多图
 function openMomentDetail(itemId) {
   const item = personalItems.find(it => String(it.id) === String(itemId));
   if (!item) { showToast('朋友圈不存在: ' + itemId); return; }
@@ -15563,7 +15775,8 @@ function renderMomentDetail() {
       avatarBg = 'var(--accent)';
     }
     const avatarStyle = hasAvatar ? 'background-image:url('+c.authorAvatar+');background-size:cover;background-position:center;' : 'background:'+avatarBg+';';
-    const imgHtml = c.image ? '<img src="'+c.image+'" style="max-width:200px;max-height:260px;border-radius:8px;margin-top:4px;display:block;cursor:pointer;" onclick="previewImage(\''+c.image+'\')">' : '';
+    const cImgs = (c.images && c.images.length) ? c.images : (c.image ? [c.image] : []);
+    const imgHtml = cImgs.length > 0 ? cImgs.map(ci => '<img src="'+ci+'" style="max-width:200px;max-height:260px;border-radius:8px;margin-top:4px;display:block;cursor:pointer;" onclick="previewImage(\''+ci+'\')">').join('') : '';
     const replyBtn = '<span onclick="setMomentReplyTarget(\''+c.id+'\',\''+escapeHtml(c.authorName||c.authorId)+'\',\''+(c.threadRootId||c.id)+'\')" style="color:var(--text-tertiary);cursor:pointer;font-size:12px;margin-left:8px;">回复</span>';
     let replyToHtml = '';
     if (isReply && c.parentId) {
@@ -15614,13 +15827,13 @@ function renderMomentDetail() {
       '<svg viewBox="0 0 24 24" width="16" height="16" fill="'+(mLiked?'currentColor':'none')+'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>' +
       mLikeCount + '</span>';
   const replyHint = momentReplyTarget ? '<div style="margin-top:10px;font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">回复 <span style="color:#576b95;">@'+escapeHtml(momentReplyTarget.authorName)+'</span><span onclick="momentReplyCancel()" style="cursor:pointer;color:var(--accent);">取消</span></div>' : '';
-  const imgPreview = momentPendingImage ? '<div style="position:relative;display:inline-block;margin-top:6px;"><img src="'+momentPendingImage+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;"><span onclick="momentRemoveImg()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;">×</span></div>' : '';
+  const imgPreview = momentPendingImages.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + momentPendingImages.map((mi, idx) => '<div style="position:relative;"><img src="'+mi+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;"><span onclick="momentRemoveImg('+idx+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;">×</span></div>').join('') + '</div>' : '';
   const canCommentMoment = isMyMoment || item.visibility === 'friends' || item.visibility === 'public';
   const commentInputHtml = canCommentMoment ? '<div style="margin-top:auto;position:sticky;bottom:0;background:var(--bg);padding:10px 16px;border-top:1px solid var(--border);z-index:10;">' +
-      replyHint +
+      replyHint + imgPreview +
       '<div style="display:flex;gap:8px;align-items:flex-end;">' +
         '<button onclick="document.getElementById(\'momentCommentImgInput\').click()" style="width:36px;height:36px;border:none;border-radius:50%;background:var(--bg-secondary);color:var(--text-secondary);font-size:18px;cursor:pointer;flex-shrink:0;">📷</button>' +
-        '<input type="file" id="momentCommentImgInput" accept="image/*" style="display:none;" onchange="momentCommentImgChange(event)">' +
+        '<input type="file" id="momentCommentImgInput" accept="image/*" multiple style="display:none;" onchange="momentCommentImgChange(event)">' +
         '<input type="text" id="momentCommentInput" placeholder="'+(momentReplyTarget?'回复 '+momentReplyTarget.authorName+'...':'写评论...')+'" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:20px;background:var(--bg);color:var(--text-primary);font-size:14px;outline:none;" oninput="momentCommentInput()" onkeydown="if(event.key===\'Enter\')sendMomentComment()">' +
         '<button onclick="sendMomentComment()" style="padding:10px 18px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;">发送</button>' +
       '</div>' +
@@ -15682,6 +15895,7 @@ function initDynamicReactions(item) {
 let currentDiaryDetailId = null;
 let diaryReplyTarget = null;
 let diaryPendingImage = '';
+let diaryPendingImages = []; // v77.63：日记评论多图
 
 function openDiaryDetail(id) {
   const item = personalItems.find(it => String(it.id) === String(id));
@@ -15691,7 +15905,7 @@ function openDiaryDetail(id) {
   saveCollections();
   currentDiaryDetailId = item.id;
   diaryReplyTarget = null;
-  diaryPendingImage = '';
+  diaryPendingImages = [];
   addToHistory(id, 'diary');
   navigate('diary-detail');
   setTimeout(renderDiaryDetail, 50);
@@ -15728,7 +15942,8 @@ function renderDiaryDetail() {
     const cName = getOwnerDisplayName(c.authorId || c.authorName || '?');
     const cIsMe = isOwnerSelf(c.authorId || c.authorName || '');
     const cAvatarBg = cIsMe ? 'var(--accent)' : avatarColor(cName);
-    const cImg = c.image ? '<img src="'+c.image+'" style="max-width:200px;max-height:260px;border-radius:8px;margin-top:4px;display:block;cursor:pointer;" onclick="previewImage(\''+c.image+'\')">' : '';
+    const cImgs = (c.images && c.images.length) ? c.images : (c.image ? [c.image] : []);
+    const cImg = cImgs.length > 0 ? cImgs.map(ci => '<img src="'+ci+'" style="max-width:200px;max-height:260px;border-radius:8px;margin-top:4px;display:block;cursor:pointer;" onclick="previewImage(\''+ci+'\')">').join('') : '';
     const replyBtn = canComment ? '<span onclick="setDiaryReplyTarget(\''+c.id+'\',\''+escapeHtml(cName)+'\',\''+(c.threadRootId||c.id)+'\')" style="color:var(--text-tertiary);cursor:pointer;font-size:12px;margin-left:8px;">回复</span>' : '';
     let replyToHtml = '';
     if (isReply && c.parentId) {
@@ -15757,12 +15972,12 @@ function renderDiaryDetail() {
     : '<div style="text-align:center;color:var(--text-tertiary);font-size:13px;padding:20px 0;">还没有评论</div>';
 
   const replyHint = diaryReplyTarget ? '<div style="margin-bottom:8px;font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">回复 <span style="color:#576b95;">@'+escapeHtml(diaryReplyTarget.authorName)+'</span><span onclick="diaryReplyCancel()" style="cursor:pointer;color:var(--accent);">取消</span></div>' : '';
-  const imgPreview = diaryPendingImage ? '<div style="position:relative;display:inline-block;margin-bottom:8px;"><img src="'+diaryPendingImage+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;"><span onclick="diaryRemoveImg()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;">×</span></div>' : '';
+  const imgPreview = diaryPendingImages.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' + diaryPendingImages.map((di, idx) => '<div style="position:relative;"><img src="'+di+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;"><span onclick="diaryRemoveImg('+idx+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;">×</span></div>').join('') + '</div>' : '';
   const commentInputHtml = canComment ? '<div style="margin-top:auto;position:sticky;bottom:0;background:var(--bg-elevated);padding:10px 16px;border-top:1px solid var(--border);z-index:10;">' +
       replyHint + imgPreview +
       '<div style="display:flex;gap:8px;align-items:center;">' +
         '<button onclick="document.getElementById(\'diaryCommentImgInput\').click()" style="width:36px;height:36px;border:none;border-radius:50%;background:var(--bg-secondary);color:var(--text-secondary);font-size:18px;cursor:pointer;flex-shrink:0;">📷</button>' +
-        '<input type="file" id="diaryCommentImgInput" accept="image/*" style="display:none;" onchange="diaryCommentImgChange(event)">' +
+        '<input type="file" id="diaryCommentImgInput" accept="image/*" multiple style="display:none;" onchange="diaryCommentImgChange(event)">' +
         '<input type="text" id="diaryCommentInput" placeholder="'+(diaryReplyTarget?'回复 '+diaryReplyTarget.authorName+'...':'写评论...')+'" style="flex:1;height:36px;padding:0 12px;border:1px solid var(--border);border-radius:18px;background:var(--bg);color:var(--text-primary);font-size:14px;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')sendDiaryComment()">' +
         '<button onclick="sendDiaryComment()" style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:16px;flex-shrink:0;">➤</button>' +
       '</div>' +
@@ -15806,13 +16021,21 @@ function setDiaryReplyTarget(commentId, authorName, threadRootId) {
   document.getElementById('diaryCommentInput')?.focus();
 }
 function diaryReplyCancel() { diaryReplyTarget = null; renderDiaryDetail(); }
-function diaryRemoveImg() { diaryPendingImage = ''; renderDiaryDetail(); }
+function diaryRemoveImg(idx) { diaryPendingImages.splice(idx, 1); renderDiaryDetail(); }
+// v77.63：日记评论多图——统一压缩（原为原始dataURL，会撑爆存储）
 function diaryCommentImgChange(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) { diaryPendingImage = ev.target.result; renderDiaryDetail(); };
-  reader.readAsDataURL(file);
+  const files = Array.from(e.target.files || []);
+  (async () => {
+    for (const file of files) {
+      if (!file) continue;
+      const reader = new FileReader();
+      const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+      const comp = await compressImageDataUrl(dataUrl, 800, 0.8, 0.6);
+      diaryPendingImages.push(comp);
+    }
+    renderDiaryDetail();
+  })();
+  e.target.value = '';
 }
 function diaryCommentAvatarClick(authorId, authorName) {
   if (isOwnerSelf(authorId)) { navigate('profile'); }
@@ -15821,7 +16044,7 @@ function diaryCommentAvatarClick(authorId, authorName) {
 function sendDiaryComment() {
   const input = document.getElementById('diaryCommentInput');
   const text = input ? input.value.trim() : '';
-  if (!text && !diaryPendingImage) { showToast('评论内容不能为空'); return; }
+  if (!text && diaryPendingImages.length === 0) { showToast('评论内容不能为空'); return; }
   const item = personalItems.find(it => String(it.id) === String(currentDiaryDetailId));
   if (!item) return;
   if (!item.momentComments) item.momentComments = [];
@@ -15832,13 +16055,14 @@ function sendDiaryComment() {
     authorId: USER_SELF_ID,
     authorName: getUserName(),
     text: text,
-    image: diaryPendingImage || '',
+    image: diaryPendingImages[0] || '',
+    images: [...diaryPendingImages],
     time: formatTime()
   };
   item.momentComments.push(newComment);
   saveCollections();
   diaryReplyTarget = null;
-  diaryPendingImage = '';
+  diaryPendingImages = [];
   renderDiaryDetail();
   // 如果是回复AI角色的评论，触发AI回复映射
   if (diaryReplyTarget && !isOwnerSelf(diaryReplyTarget.commentId)) {
@@ -15945,7 +16169,8 @@ function renderDynamicDetail() {
     const cName = getOwnerDisplayName(c.authorId || c.authorName || '?');
     const cIsMe = isOwnerSelf(c.authorId || c.authorName || '');
     const cAvatarBg = cIsMe ? 'var(--accent)' : avatarColor(cName);
-    const cImg = c.image ? '<img src="'+c.image+'" style="max-width:200px;max-height:260px;border-radius:8px;margin-top:4px;display:block;cursor:pointer;" onclick="previewImage(\''+c.image+'\')">' : '';
+    const cImgs = (c.images && c.images.length) ? c.images : (c.image ? [c.image] : []);
+    const cImg = cImgs.length > 0 ? cImgs.map(ci => '<img src="'+ci+'" style="max-width:200px;max-height:260px;border-radius:8px;margin-top:4px;display:block;cursor:pointer;" onclick="previewImage(\''+ci+'\')">').join('') : '';
     const replyBtn = '<span onclick="setDynamicReplyTarget(\''+c.id+'\',\''+escapeHtml(cName)+'\',\''+(c.threadRootId||c.id)+'\')" style="color:var(--text-tertiary);cursor:pointer;font-size:12px;margin-left:8px;">回复</span>';
     // 子评论显示回复@xxx
     let replyToHtml = '';
@@ -16001,10 +16226,10 @@ function renderDynamicDetail() {
     '</div>' +
     '<div style="margin-top:auto;position:sticky;bottom:0;background:var(--bg-elevated);padding:10px 16px;border-top:1px solid var(--border);z-index:10;">' +
       (dynamicReplyTarget ? '<div style="margin-bottom:8px;font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;">回复 <span style="color:#576b95;">@'+escapeHtml(dynamicReplyTarget.authorName)+'</span><span onclick="dynamicReplyCancel()" style="cursor:pointer;color:var(--accent);">取消</span></div>' : '') +
-      (dynamicPendingImage ? '<div style="position:relative;display:inline-block;margin-bottom:8px;"><img src="'+dynamicPendingImage+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;"><span onclick="dynamicRemoveImg()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;">×</span></div>' : '') +
+      (dynamicPendingImages.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' + dynamicPendingImages.map((di, idx) => '<div style="position:relative;"><img src="'+di+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;"><span onclick="dynamicRemoveImg('+idx+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;">×</span></div>').join('') + '</div>' : '') +
       '<div style="display:flex;gap:8px;align-items:center;">' +
         '<button onclick="document.getElementById(\'dynamicCommentImgInput\').click()" style="width:36px;height:36px;border:none;border-radius:50%;background:var(--bg-secondary);color:var(--text-secondary);font-size:18px;cursor:pointer;flex-shrink:0;">📷</button>' +
-        '<input type="file" id="dynamicCommentImgInput" accept="image/*" style="display:none;" onchange="dynamicCommentImgChange(event)">' +
+        '<input type="file" id="dynamicCommentImgInput" accept="image/*" multiple style="display:none;" onchange="dynamicCommentImgChange(event)">' +
         '<input type="text" id="dynamicCommentInput" placeholder="'+(dynamicReplyTarget?'回复 '+dynamicReplyTarget.authorName+'...':'说点什么...')+'" style="flex:1;height:36px;padding:0 12px;border:1px solid var(--border);border-radius:18px;background:var(--bg);color:var(--text-primary);font-size:14px;box-sizing:border-box;" oninput="dynamicCommentInput()" onkeydown="if(event.key===\'Enter\')sendDynamicComment()">' +
         '<button onclick="sendDynamicComment()" style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:16px;flex-shrink:0;">➤</button>' +
       '</div>' +
@@ -16032,6 +16257,7 @@ function toggleDynamicReaction(key) {
 
 let dynamicReplyTarget = null;
 let dynamicPendingImage = null;
+let dynamicPendingImages = []; // v77.63：动态评论多图
 function setDynamicReplyTarget(commentId, authorName, threadRootId) {
   dynamicReplyTarget = { commentId, authorName, threadRootId };
   renderDynamicDetail();
@@ -16041,29 +16267,23 @@ function dynamicReplyCancel() {
   dynamicReplyTarget = null;
   renderDynamicDetail();
 }
-function dynamicRemoveImg() {
-  dynamicPendingImage = null;
+function dynamicRemoveImg(idx) {
+  dynamicPendingImages.splice(idx, 1);
   renderDynamicDetail();
 }
+// v77.63：动态评论多图——每张压缩800px JPEG 0.8
 function dynamicCommentImgChange(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const maxW = 800;
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      dynamicPendingImage = canvas.toDataURL('image/jpeg', 0.8);
-      renderDynamicDetail();
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(e.target.files || []);
+  (async () => {
+    for (const file of files) {
+      if (!file) continue;
+      const reader = new FileReader();
+      const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+      const comp = await compressImageDataUrl(dataUrl, 800, 0.8, 0.6);
+      dynamicPendingImages.push(comp);
+    }
+    renderDynamicDetail();
+  })();
   e.target.value = '';
 }
 function dynamicCommentInput() {
@@ -16116,7 +16336,7 @@ function insertDynamicMention(charId) {
 function sendDynamicComment() {
   const input = document.getElementById('dynamicCommentInput');
   const text = input ? input.value.trim() : '';
-  if (!text && !dynamicPendingImage) return;
+  if (!text && dynamicPendingImages.length === 0) return;
   const item = personalItems.find(it => it.id === currentDynamicId);
   if (!item) return;
   initDynamicReactions(item);
@@ -16133,7 +16353,8 @@ function sendDynamicComment() {
     authorAvatar: getUserAvatar() || '',
     content: text,
     text: text,
-    image: dynamicPendingImage,
+    image: dynamicPendingImages[0] || null,
+    images: [...dynamicPendingImages],
     time: formatTime(),
     isSelf: true,
     isAI: false
@@ -16142,7 +16363,7 @@ function sendDynamicComment() {
   saveCollections();
   const savedReplyTarget = dynamicReplyTarget;
   input.value = '';
-  dynamicPendingImage = null;
+  dynamicPendingImages = [];
   dynamicReplyTarget = null;
   renderDynamicDetail();
   // 反向镜像到私信：指定好友可见的动态
@@ -16296,9 +16517,10 @@ function renderDynamicCard(item) {
   const visLabel = item.visibility==='public'?'公开':(item.visibility==='friends'?'仅好友':'仅自己');
   const totalReactions = DYNAMIC_REACTIONS.reduce((s,r)=>s+(item.reactions[r.key]||0),0);
   let imgPreview = '';
-  if (item.images && item.images.length > 0) {
+  const _dynImgs = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+  if (_dynImgs.length > 0) {
     imgPreview = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:6px;max-height:120px;overflow:hidden;border-radius:6px;">';
-    item.images.slice(0,3).forEach(img => {
+    _dynImgs.slice(0,3).forEach(img => {
       imgPreview += '<div style="aspect-ratio:1;overflow:hidden;"><img src="'+img+'" style="width:100%;height:100%;object-fit:cover;"></div>';
     });
     imgPreview += '</div>';
@@ -16348,29 +16570,23 @@ function toggleMomentCommentCollapse(commentId) {
   }
   renderMomentDetail();
 }
-function momentRemoveImg() {
-  momentPendingImage = null;
+function momentRemoveImg(idx) {
+  momentPendingImages.splice(idx, 1);
   renderMomentDetail();
 }
+// v77.63：朋友圈评论多图——每张压缩800px JPEG 0.8
 function momentCommentImgChange(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const maxW = 800;
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      momentPendingImage = canvas.toDataURL('image/jpeg', 0.8);
-      renderMomentDetail();
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(e.target.files || []);
+  (async () => {
+    for (const file of files) {
+      if (!file) continue;
+      const reader = new FileReader();
+      const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+      const comp = await compressImageDataUrl(dataUrl, 800, 0.8, 0.6);
+      momentPendingImages.push(comp);
+    }
+    renderMomentDetail();
+  })();
   e.target.value = '';
 }
 function momentCommentInput() {
@@ -16423,7 +16639,7 @@ function insertMomentMention(charId) {
 function sendMomentComment() {
   const input = document.getElementById('momentCommentInput');
   const text = input.value.trim();
-  if (!text && !momentPendingImage) return;
+  if (!text && momentPendingImages.length === 0) return;
   const item = personalItems.find(it => it.id === currentMomentId);
   if (!item) return;
   if (!item.momentComments) item.momentComments = [];
@@ -16438,7 +16654,8 @@ function sendMomentComment() {
     authorName: getUserName(),
     authorAvatar: getUserAvatar() || '',
     content: text,
-    image: momentPendingImage,
+    image: momentPendingImages[0] || null,
+    images: [...momentPendingImages],
     time: formatTime(),
     isAI: false
   };
@@ -16447,7 +16664,7 @@ function sendMomentComment() {
   item.momentComments.push(newComment);
   saveCollections();
   input.value = '';
-  momentPendingImage = null;
+  momentPendingImages = [];
   momentReplyTarget = null;
   renderMomentDetail();
   // 反向镜像：仅指定好友可见的朋友圈
@@ -17290,7 +17507,7 @@ function renderPostDetail() {
         <div class="comment-body">
           <div class="comment-name">${escapeHtml(displayName)}${isMe || c.author === post.author ? '<span class="author-badge">作者</span>' : ''}</div>
           <div class="comment-text">${escapeHtml(c.text)}</div>
-          ${c.image ? `<img class="comment-image" src="${c.image}" alt="" loading="lazy">` : (c.imageGenerating ? `<div class="comment-image comment-img-loading"><div class="ai-dots"><span></span><span></span><span></span></div><span>图片生成中...</span></div>` : '')}
+          ${(c.images && c.images.length) ? c.images.map(ci => `<img class="comment-image" src="${ci}" alt="" loading="lazy">`).join('') : (c.image ? `<img class="comment-image" src="${c.image}" alt="" loading="lazy">` : (c.imageGenerating ? `<div class="comment-image comment-img-loading"><div class="ai-dots"><span></span><span></span><span></span></div><span>图片生成中...</span></div>` : ''))}
           <div class="comment-time">${c.time}</div>
           <div class="comment-actions">
             <button class="comment-like-btn ${c.liked?'liked':''}" onclick="event.stopPropagation();toggleCommentLike(${post.id},${c.id},this)">
@@ -17326,7 +17543,7 @@ function renderPostDetail() {
         <div class="comment-body">
           <div class="comment-name">${escapeHtml(displayName)}${isMe || c.author === post.author ? '<span class="author-badge">作者</span>' : ''}${replyToName ? ` <span class="reply-arrow">→ @${replyToName}</span>` : ''}</div>
           <div class="comment-text">${escapeHtml(c.text)}</div>
-          ${c.image ? `<img class="comment-image" src="${c.image}" alt="" loading="lazy">` : (c.imageGenerating ? `<div class="comment-image comment-img-loading"><div class="ai-dots"><span></span><span></span><span></span></div><span>图片生成中...</span></div>` : '')}
+          ${(c.images && c.images.length) ? c.images.map(ci => `<img class="comment-image" src="${ci}" alt="" loading="lazy">`).join('') : (c.image ? `<img class="comment-image" src="${c.image}" alt="" loading="lazy">` : (c.imageGenerating ? `<div class="comment-image comment-img-loading"><div class="ai-dots"><span></span><span></span><span></span></div><span>图片生成中...</span></div>` : ''))}
           <div class="comment-time">${c.time}</div>
           <div class="comment-actions">
             <button class="comment-like-btn ${c.liked?'liked':''}" onclick="event.stopPropagation();toggleCommentLike(${post.id},${c.id},this)">
@@ -17358,7 +17575,7 @@ function renderPostDetail() {
       </div>
       <div class="detail-post-content">${escapeHtml(post.content)}</div>
       ${(post.tags && post.tags.length > 0) || post.circleId ? '<div class="post-tags">' + (post.tags || (post.topic ? [post.topic] : [])).map(t => '<span class="post-tag">#' + escapeHtml(t) + '</span>').join('') + '<span class="post-source-tag">来自·' + escapeHtml(post.circleId ? (circles.find(c => c.id === post.circleId)?.name || '广场') : '广场') + '</span></div>' : (post.topic ? '<div class="post-tags"><span class="post-tag">#' + escapeHtml(post.topic) + '</span><span class="post-source-tag">来自·广场</span></div>' : '')}
-      ${post.image ? `<img class="detail-post-image" src="${post.image}" alt="">` : ''}
+      ${(post.images && post.images.length) ? post.images.map(_pi => `<img class="detail-post-image" src="${_pi}" alt="">`).join('') : (post.image ? `<img class="detail-post-image" src="${post.image}" alt="">` : '')}
       <div class="detail-post-actions">
         <span class="action-item super-like-btn ${post.liked?'liked':''}" data-post-id="${post.id}" onclick="toggleLike(${post.id})"><svg viewBox="0 0 24 24" fill="${post.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${post.likes}</span>
         <span class="action-item fav-star-btn ${isFavorited(post.contentId||post.id,'post')?'active':''}" onclick="event.stopPropagation();toggleFavorite('${post.contentId||post.id}','post')"><svg viewBox="0 0 24 24" fill="${isFavorited(post.contentId||post.id,'post')?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>${formatLikeStats(post)?'<span style="font-size:11px;color:var(--text-tertiary);margin-left:4px;">('+formatLikeStats(post)+')</span>':''}
@@ -17654,45 +17871,48 @@ document.getElementById('replyCancel').addEventListener('click', () => {
 // ===== Send Comment =====
 const commentInput = document.getElementById('commentInput');
 const sendCommentBtn = document.getElementById('sendComment');
-let pendingCommentImage = null;
+let pendingCommentImages = [];
 const commentImgBtn = document.getElementById('commentImgBtn');
 const commentImgInput = document.getElementById('commentImgInput');
 const commentImgPreview = document.getElementById('commentImgPreview');
-const commentImgPreviewImg = document.getElementById('commentImgPreviewImg');
-const commentImgRemove = document.getElementById('commentImgRemove');
 commentImgBtn.addEventListener('click', () => commentImgInput.click());
-commentImgInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    // 压缩图片
-    const img = new Image();
-    img.onload = () => {
-      const maxW = 800;
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      pendingCommentImage = canvas.toDataURL('image/jpeg', 0.8);
-      commentImgPreviewImg.src = pendingCommentImage;
-      commentImgPreview.classList.remove('hidden');
-      sendCommentBtn.disabled = false;
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
+// v77.63：评论支持多图——每张独立压缩到800px JPEG 0.8，预览多缩略图
+function renderCommentImgPreview() {
+  if (!commentImgPreview) return;
+  if (pendingCommentImages.length === 0) {
+    commentImgPreview.classList.add('hidden');
+    commentImgPreview.innerHTML = '';
+    return;
+  }
+  commentImgPreview.classList.remove('hidden');
+  commentImgPreview.innerHTML = pendingCommentImages.map((img, idx) =>
+    '<div style="position:relative;display:inline-block;margin-right:6px;margin-bottom:4px;">' +
+      '<img src="' + img + '" style="height:60px;max-width:120px;border-radius:6px;object-fit:cover;display:block;">' +
+      '<span onclick="removeCommentImg(' + idx + ')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;line-height:1;">×</span>' +
+    '</div>'
+  ).join('');
+}
+function removeCommentImg(idx) {
+  pendingCommentImages.splice(idx, 1);
+  renderCommentImgPreview();
+  const input = document.getElementById('commentInput');
+  sendCommentBtn.disabled = input.value.trim().length === 0 && pendingCommentImages.length === 0;
+}
+commentImgInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  for (const file of files) {
+    if (!file) continue;
+    const reader = new FileReader();
+    const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+    const comp = await compressImageDataUrl(dataUrl, 800, 0.8, 0.6);
+    pendingCommentImages.push(comp);
+  }
+  renderCommentImgPreview();
+  sendCommentBtn.disabled = document.getElementById('commentInput').value.trim().length === 0 && pendingCommentImages.length === 0;
   e.target.value = '';
 });
-commentImgRemove.addEventListener('click', () => {
-  pendingCommentImage = null;
-  commentImgPreview.classList.add('hidden');
-  commentImgPreviewImg.src = '';
-  sendCommentBtn.disabled = commentInput.value.trim().length === 0;
-});
 commentInput.addEventListener('input', () => {
-  sendCommentBtn.disabled = commentInput.value.trim().length === 0 && !pendingCommentImage;
+  sendCommentBtn.disabled = commentInput.value.trim().length === 0 && pendingCommentImages.length === 0;
   // @检测：光标前一个字符是@时弹出候选列表
   const val = commentInput.value;
   const cursorPos = commentInput.selectionStart;
@@ -17742,7 +17962,7 @@ function insertCommentMention(charId) {
   input.focus();
   input.setSelectionRange(newCursorPos, newCursorPos);
   document.getElementById('commentMentionPanel').style.display = 'none';
-  sendCommentBtn.disabled = input.value.trim().length === 0 && !pendingCommentImage;
+  sendCommentBtn.disabled = input.value.trim().length === 0 && pendingCommentImages.length === 0;
 }
 sendCommentBtn.addEventListener('click', sendUserComment);
 commentInput.addEventListener('keydown', (e) => {
@@ -17775,22 +17995,22 @@ function sendUserComment() {
     avatar: getUserAvatar() || getUserName().charAt(0),
     time: formatTime(),
     text: text,
-    image: pendingCommentImage,
+    image: pendingCommentImages[0] || null,
+    images: [...pendingCommentImages],
     likes: 0,
     liked: false,
     isAI: false
   };
   post.commentList.push(newComment);
-  // 异步解析评论配图（缓存，不阻塞）
-  if (newComment.image) {
-    imageToBase64(newComment.image).then(b64 => {
-      if (b64) getImageDesc('comment_' + newComment.id, b64);
+  // 异步解析评论配图（缓存，不阻塞）——多图每张都解析
+  (newComment.images && newComment.images.length ? newComment.images : (newComment.image ? [newComment.image] : [])).forEach(function(ci, ciIdx) {
+    imageToBase64(ci).then(b64 => {
+      if (b64) getImageDesc('comment_' + newComment.id + '_' + ciIdx, b64);
     });
-  }
+  });
   commentInput.value = '';
-  pendingCommentImage = null;
-  commentImgPreview.classList.add('hidden');
-  commentImgPreviewImg.src = '';
+  pendingCommentImages = [];
+  renderCommentImgPreview();
   sendCommentBtn.disabled = true;
   replyTarget = null;
   updateReplyModeUI();
@@ -19895,7 +20115,7 @@ function renderNotebookList() {
     <article class="post-card" onclick="editNote(${n.id})">
       <div class="post-content" style="font-weight:600;font-size:16px;">${escapeHtml(n.title || '无标题')}</div>
       <div class="post-content" style="color:var(--text-secondary);font-size:14px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(n.content || '')}</div>
-      ${n.image ? '<img class="post-image" src="'+n.image+'" alt="" loading="lazy">' : ''}
+      ${(n.images && n.images.length) ? n.images.map(_ni => '<img class="post-image" src="'+_ni+'" alt="" loading="lazy">').join('') : (n.image ? '<img class="post-image" src="'+n.image+'" alt="" loading="lazy">' : '')}
       <div class="post-actions">
         <span class="action-item">${n.time}</span>
         <span class="action-item" style="color:var(--error);" onclick="event.stopPropagation();deleteNote(${n.id})">删除</span>
@@ -19906,6 +20126,7 @@ function renderNotebookList() {
 function newNote() {
   currentNoteId = null;
   currentNoteImage = null;
+  currentNoteImages = [];
   document.getElementById('noteTitleInput').value = '';
   document.getElementById('noteContentInput').value = '';
   document.getElementById('noteImgPreview').classList.add('hidden');
@@ -19918,17 +20139,12 @@ function editNote(id) {
   const note = list.find(n => n.id === id);
   if (!note) return;
   currentNoteId = id;
-  currentNoteImage = note.image || null;
+  currentNoteImages = (note.images && note.images.length) ? [...note.images] : (note.image ? [note.image] : []);
+  currentNoteImage = currentNoteImages[0] || null;
   document.getElementById('noteTitleInput').value = note.title || '';
   document.getElementById('noteContentInput').value = note.content || '';
   document.getElementById('noteEditTitle').textContent = currentNotebook;
-  const preview = document.getElementById('noteImgPreview');
-  if (note.image) {
-    document.getElementById('noteImgPreviewImg').src = note.image;
-    preview.classList.remove('hidden');
-  } else {
-    preview.classList.add('hidden');
-  }
+  renderNoteImagesPreview();
   navigate('note-edit');
 }
 function saveNote() {
@@ -19939,10 +20155,10 @@ function saveNote() {
   if (currentNoteId) {
     const idx = notebookNotes[currentNotebook].findIndex(n => n.id === currentNoteId);
     if (idx !== -1) {
-      notebookNotes[currentNotebook][idx] = { ...notebookNotes[currentNotebook][idx], title, content, image: currentNoteImage, time: formatTime() };
+      notebookNotes[currentNotebook][idx] = { ...notebookNotes[currentNotebook][idx], title, content, image: currentNoteImages[0] || '', images: [...currentNoteImages], time: formatTime() };
     }
   } else {
-    notebookNotes[currentNotebook].push({ id: Date.now(), title, content, image: currentNoteImage, time: formatTime() });
+    notebookNotes[currentNotebook].push({ id: Date.now(), title, content, image: currentNoteImages[0] || '', images: [...currentNoteImages], time: formatTime() });
   }
   saveNotebookNotes();
   return true;
@@ -20357,8 +20573,9 @@ function renderCollectionList() {
       const visLabel = it.visibility === 'public' ? '完全公开' : (it.visibility === 'friends' ? '仅指定好友可见' : '仅自己可见');
       // 图片网格
       let imgsHtml = '';
-      if (it.images && it.images.length) {
-        const imgs = it.images.slice(0,9);
+      const _momImgs = (it.images && it.images.length) ? it.images : (it.image ? [it.image] : []);
+      if (_momImgs.length) {
+        const imgs = _momImgs.slice(0,9);
         const cols = imgs.length === 1 ? 1 : (imgs.length <= 4 ? 2 : 3);
         imgsHtml = '<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:4px;margin-top:8px;max-width:'+(cols===1?'200px':cols===2?'160px':'240px')+';">';
         imgs.forEach(img => { imgsHtml += '<div style="aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--bg-elevated);"><img src="'+img+'" style="width:100%;height:100%;object-fit:cover;" onclick="event.stopPropagation();previewImage(\''+img+'\')"></div>'; });
@@ -20474,7 +20691,7 @@ function newCollectionItem() {
     document.getElementById('diaryContentInput').value = '';
     document.getElementById('diaryImagePreview').innerHTML = '';
     document.getElementById('diaryWordCount').textContent = '0字';
-    currentDiaryImage = '';
+    currentDiaryImages = [];
     window._newDiaryVisibility = 'private';
     window._diaryFriendIds = [];
     // 绑定权限选择器
@@ -20526,7 +20743,7 @@ function newCollectionItem() {
     document.getElementById('sharePublicOptions').style.display = 'none';
     document.getElementById('shareContentInput').value = '';
     document.getElementById('shareImagePreview').innerHTML = '';
-    currentShareImage = '';
+    currentShareImages = [];
     // 加载圈子下拉
     const sel = document.getElementById('shareCircleSelect');
     sel.innerHTML = '<option value="">不选择圈子</option>' + circles.map(c => '<option value="'+c.id+'">'+c.name+'</option>').join('');
@@ -20538,17 +20755,33 @@ function newCollectionItem() {
   }
 }
 // 日记编辑
-let currentDiaryImage = '';
+let currentDiaryImages = [];
 function diaryPickImage() { document.getElementById('diaryImageInput').click(); }
+// v77.63：日记多图——每张压缩800px JPEG 0.8（原为原始dataURL，大图会超存储配额）
 function diaryImageSelected(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    currentDiaryImage = ev.target.result;
-    document.getElementById('diaryImagePreview').innerHTML = '<img src="'+currentDiaryImage+'" style="max-width:100%;border-radius:8px;max-height:200px;">';
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(e.target.files || []);
+  (async () => {
+    for (const file of files) {
+      if (!file) continue;
+      const reader = new FileReader();
+      const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+      const comp = await compressImageDataUrl(dataUrl, 800, 0.8, 0.6);
+      currentDiaryImages.push(comp);
+    }
+    renderDiaryImagesPreview();
+  })();
+  e.target.value = '';
+}
+function renderDiaryImagesPreview() {
+  const el = document.getElementById('diaryImagePreview');
+  if (!el) return;
+  el.innerHTML = currentDiaryImages.length ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + currentDiaryImages.map((img, idx) =>
+    '<div style="position:relative;"><img src="'+img+'" style="max-width:120px;max-height:120px;border-radius:8px;object-fit:cover;display:block;"><span onclick="removeDiaryImage('+idx+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;line-height:1;">×</span></div>'
+  ).join('') + '</div>' : '';
+}
+function removeDiaryImage(idx) {
+  currentDiaryImages.splice(idx, 1);
+  renderDiaryImagesPreview();
 }
 // 日记字数实时统计
 document.addEventListener('DOMContentLoaded', () => {
@@ -20611,7 +20844,7 @@ function saveDiaryAndBack() {
         if (idx >= 0) { posts.splice(idx, 1); savePosts(); }
         it.postId = null;
       }
-      it.title = title; it.content = content; it.image = currentDiaryImage; it.visibility = vis;
+      it.title = title; it.content = content; it.image = currentDiaryImages[0] || ''; it.images = [...currentDiaryImages]; it.visibility = vis;
       it.visibleFriendIds = vis === 'friends' ? [...(window._diaryFriendIds||[])] : [];
       it.updateTime = now;
       // 编辑模式public：原地更新或生成post
@@ -20619,7 +20852,7 @@ function saveDiaryAndBack() {
         if (it.postId) {
           const p = posts.find(x => String(x.id) === String(it.postId));
           if (p) {
-            p.content = (title?title+'\n':'') + content; p.images = currentDiaryImage?[currentDiaryImage]:[];
+            p.content = (title?title+'\n':'') + content; p.images = [...currentDiaryImages];
             savePosts();
             if (oldVisibility !== 'public' && config.autoReply && config.baseUrl && config.apiKey && config.model) {
               const fakeOpComment = { id: p.id, parentId: null, text: p.content, author: getUserName() };
@@ -20629,7 +20862,7 @@ function saveDiaryAndBack() {
         } else {
           const post = {
             id: Date.now()+1, author: it.ownerId, authorName: it.ownerId,
-            content: (title?title+'\n':'') + content, images: currentDiaryImage?[currentDiaryImage]:[],
+            content: (title?title+'\n':'') + content, images: [...currentDiaryImages],
             tags: ['日记'], circleId: '', visibility: 'public', isDiary: true,
             createTime: now, likes: 0, commentList: []
           };
@@ -20670,7 +20903,7 @@ function saveDiaryAndBack() {
     const item = {
       id: Date.now(), collectionId: currentCollectionId, type: 'diary',
       ownerId: resolveOwnerId(currentProfileAuthor),
-      title, content, image: currentDiaryImage, visibility: vis,
+      title, content, image: currentDiaryImages[0] || '', images: [...currentDiaryImages], visibility: vis,
       visibleFriendIds: vis === 'friends' ? [...(window._diaryFriendIds||[])] : [],
       postId: null, localTags: [], createTime: now, updateTime: now
     };
@@ -20679,7 +20912,7 @@ function saveDiaryAndBack() {
     if (vis === 'public') {
       const post = {
         id: Date.now()+1, author: item.ownerId, authorName: item.ownerId,
-        content: (title?title+'\n':'') + content, images: currentDiaryImage?[currentDiaryImage]:[],
+        content: (title?title+'\n':'') + content, images: [...currentDiaryImages],
         tags: ['日记'], circleId: '', visibility: 'public', isDiary: true,
         createTime: now, likes: 0, commentList: []
       };
@@ -20702,8 +20935,8 @@ function editDiary(id) {
   editingPersonalItemId = id;
   document.getElementById('diaryTitleInput').value = it.title || '';
   document.getElementById('diaryContentInput').value = it.content || '';
-  currentDiaryImage = it.image || '';
-  document.getElementById('diaryImagePreview').innerHTML = currentDiaryImage ? '<img src="'+currentDiaryImage+'" style="max-width:100%;border-radius:8px;max-height:200px;">' : '';
+  currentDiaryImages = (it.images && it.images.length) ? [...it.images] : (it.image ? [it.image] : []);
+  renderDiaryImagesPreview();
   document.getElementById('diaryWordCount').textContent = (it.content || '').length + '字';
   window._newDiaryVisibility = it.visibility || 'private';
   window._diaryFriendIds = it.visibleFriendIds || [];
@@ -20735,6 +20968,7 @@ function editDiary(id) {
 // 分享编辑
 let currentVisibility = 'private';
 let currentShareImage = '';
+let currentShareImages = []; // v77.63：分享多图
 function setVisibility(v) {
   currentVisibility = v;
   const opts = document.getElementById('shareVisibilityOpts');
@@ -20755,15 +20989,31 @@ function setVisibility(v) {
   }
 }
 function sharePickImage() { document.getElementById('shareImageInput').click(); }
+// v77.63：分享多图——每张压缩800px JPEG 0.8
 function shareImageSelected(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    currentShareImage = ev.target.result;
-    document.getElementById('shareImagePreview').innerHTML = '<img src="'+currentShareImage+'" style="max-width:100%;border-radius:8px;max-height:200px;">';
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(e.target.files || []);
+  (async () => {
+    for (const file of files) {
+      if (!file) continue;
+      const reader = new FileReader();
+      const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+      const comp = await compressImageDataUrl(dataUrl, 800, 0.8, 0.6);
+      currentShareImages.push(comp);
+    }
+    renderShareImagesPreview();
+  })();
+  e.target.value = '';
+}
+function renderShareImagesPreview() {
+  const el = document.getElementById('shareImagePreview');
+  if (!el) return;
+  el.innerHTML = currentShareImages.length ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + currentShareImages.map((img, idx) =>
+    '<div style="position:relative;"><img src="'+img+'" style="max-width:120px;max-height:120px;border-radius:8px;object-fit:cover;display:block;"><span onclick="removeShareImage('+idx+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;line-height:1;">×</span></div>'
+  ).join('') + '</div>' : '';
+}
+function removeShareImage(idx) {
+  currentShareImages.splice(idx, 1);
+  renderShareImagesPreview();
 }
 function saveShareAndBack() {
   const content = document.getElementById('shareContentInput').value.trim();
@@ -20787,7 +21037,7 @@ function saveShareAndBack() {
         if (idx >= 0) posts.splice(idx, 1);
         savePosts();
       }
-      it.content = content; it.image = currentShareImage; it.visibility = currentVisibility;
+      it.content = content; it.image = currentShareImages[0] || ''; it.images = [...currentShareImages]; it.visibility = currentVisibility;
       it.circleId = circleId; it.tags = tags;
       it.visibleFriendIds = currentVisibility === 'friends' ? [...(window._shareFriendIds||[])] : [];
       it.updateTime = now;
@@ -20799,7 +21049,7 @@ function saveShareAndBack() {
           p.isPublic = currentVisibility === 'public';
           p.visibleFriendIds = it.visibleFriendIds;
           p.content = content;
-          p.image = currentShareImage || p.image;
+          p.image = currentShareImages[0] || p.image; p.images = currentShareImages.length ? [...currentShareImages] : (p.images || []);
           p.circleId = circleId;
           p.tags = tags;
           p.topic = tags[0] || '';
@@ -20830,7 +21080,7 @@ function saveShareAndBack() {
             // 生成新post
             const newPost = {
               id: Date.now(), circleId, author: USER_SELF_ID, authorName: getUserName(), avatar: getUserAvatar() || getUserName().charAt(0),
-              time: now, content, image: currentShareImage || null, topic: tags[0] || '', tags,
+              time: now, content, image: currentShareImages[0] || null, images: [...currentShareImages], topic: tags[0] || '', tags,
               isPublic: true, likes: 0, comments: 0, liked: false, commentList: []
             };
             posts.unshift(newPost);
@@ -20876,7 +21126,7 @@ function saveShareAndBack() {
     if (currentVisibility === 'public') {
       const newPost = {
         id: Date.now(), circleId, author: USER_SELF_ID, authorName: getUserName(), avatar: getUserAvatar() || getUserName().charAt(0),
-        time: now, content, image: currentShareImage || null, topic: tags[0] || '', tags,
+        time: now, content, image: currentShareImages[0] || null, images: [...currentShareImages], topic: tags[0] || '', tags,
         isPublic: true, likes: 0, comments: 0, liked: false, commentList: []
       };
       posts.unshift(newPost);
@@ -20891,7 +21141,7 @@ function saveShareAndBack() {
     const item = {
       id: Date.now(), collectionId: currentCollectionId, type: 'share',
       ownerId: resolveOwnerId(currentProfileAuthor),
-      title: content.slice(0, 20), content, image: currentShareImage,
+      title: content.slice(0, 20), content, image: currentShareImages[0] || '', images: [...currentShareImages],
       visibility: currentVisibility, postId, circleId, tags,
       visibleFriendIds: currentVisibility === 'friends' ? [...(window._shareFriendIds||[])] : [],
       localTags: [], createTime: now, updateTime: now
@@ -20921,8 +21171,8 @@ function editShareItem(id) {
   }
   document.getElementById('sharePublicOptions').style.display = currentVisibility === 'public' ? 'block' : 'none';
   document.getElementById('shareContentInput').value = it.content || '';
-  currentShareImage = it.image || '';
-  document.getElementById('shareImagePreview').innerHTML = currentShareImage ? '<img src="'+currentShareImage+'" style="max-width:100%;border-radius:8px;max-height:200px;">' : '';
+  currentShareImages = (it.images && it.images.length) ? [...it.images] : (it.image ? [it.image] : []);
+  renderShareImagesPreview();
   const sel = document.getElementById('shareCircleSelect');
   sel.innerHTML = '<option value="">不选择圈子</option>' + circles.map(c => '<option value="'+c.id+'">'+c.name+'</option>').join('');
   if (it.circleId) sel.value = it.circleId;
@@ -21427,21 +21677,38 @@ function shareNoteAsPost() {
   navigate('compose');
   showToast('已转到发帖页，可编辑后发布');
 }
+// v77.63：笔记多图——每张压缩800px JPEG 0.8
 function handleNoteImage(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    currentNoteImage = ev.target.result;
-    document.getElementById('noteImgPreviewImg').src = currentNoteImage;
-    document.getElementById('noteImgPreview').classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(e.target.files || []);
+  (async () => {
+    for (const file of files) {
+      if (!file) continue;
+      const reader = new FileReader();
+      const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+      const comp = await compressImageDataUrl(dataUrl, 800, 0.8, 0.6);
+      currentNoteImages.push(comp);
+    }
+    renderNoteImagesPreview();
+  })();
+  e.target.value = '';
 }
-function removeNoteImage() {
-  currentNoteImage = null;
-  document.getElementById('noteImgPreview').classList.add('hidden');
-  document.getElementById('noteImgInput').value = '';
+function renderNoteImagesPreview() {
+  const preview = document.getElementById('noteImgPreview');
+  if (!preview) return;
+  if (currentNoteImages.length === 0) {
+    preview.classList.add('hidden');
+    preview.innerHTML = '';
+    return;
+  }
+  preview.classList.remove('hidden');
+  preview.innerHTML = currentNoteImages.map((img, idx) =>
+    '<div style="position:relative;display:inline-block;margin-right:8px;margin-bottom:8px;"><img src="'+img+'" style="max-width:140px;max-height:140px;border-radius:8px;object-fit:cover;display:block;"><span onclick="removeNoteImage('+idx+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;line-height:1;">×</span></div>'
+  ).join('');
+}
+function removeNoteImage(idx) {
+  currentNoteImages.splice(idx, 1);
+  currentNoteImage = currentNoteImages[0] || null;
+  renderNoteImagesPreview();
 }
 
 // ===== Render: Profile =====
@@ -21640,7 +21907,7 @@ function renderProfile() {
         return `
         <article class="post-card" onclick="navigate('post',{id:'${p.id}'})">
           <div class="post-content">${escapeHtml(p.content)}</div>
-          ${p.image ? `<img class="post-image" src="${p.image}" alt="" loading="lazy">` : ''}
+          ${(p.images && p.images.length) ? p.images.map(_pi => `<img class="post-image" src="${_pi}" alt="" loading="lazy">`).join('') : (p.image ? `<img class="post-image" src="${p.image}" alt="" loading="lazy">` : '')}
           <div class="post-actions">
             <span class="action-item">${p.commentList.length} 评论</span>
             <span class="action-item">${p.likes} 喜欢</span>
@@ -21689,7 +21956,7 @@ function renderProfile() {
           : likedPosts.map(p => `
             <article class="post-card" onclick="navigate('post',{id:'${p.id}'})">
               <div class="post-content">${escapeHtml(p.content)}</div>
-              ${p.image ? `<img class="post-image" src="${p.image}" alt="" loading="lazy">` : ''}
+              ${(p.images && p.images.length) ? p.images.map(_pi => `<img class="post-image" src="${_pi}" alt="" loading="lazy">`).join('') : (p.image ? `<img class="post-image" src="${p.image}" alt="" loading="lazy">` : '')}
               <div class="post-actions">
                 <span class="action-item">${p.commentList.length} 评论</span>
                 <span class="action-item liked">${p.likes} 喜欢</span>
@@ -21727,7 +21994,7 @@ function renderProfile() {
             '<span style="display:inline-block;padding:1px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent);margin-right:6px;">' + typeLabel + '</span>' +
             escapeHtml(f.author || '') + ' · ' + formatHistoryTime(f.addTime) + '</div>' +
           '<div class="post-content">' + escapeHtml(f.content || f.title || '') + '</div>' +
-          (f.image ? '<img class="post-image" src="' + f.image + '" alt="" loading="lazy">' : '') +
+          ((f.images && f.images.length) ? f.images.map(_fi => '<img class="post-image" src="' + _fi + '" alt="" loading="lazy">').join('') : (f.image ? '<img class="post-image" src="' + f.image + '" alt="" loading="lazy">' : '')) +
           '</article>';
       }).join('');
     }
@@ -22855,6 +23122,7 @@ document.getElementById('cancelCompose').addEventListener('click', () => {
   navigate('home');
 });
 let pendingComposeImage = null;
+let pendingComposeImages = []; // v77.63：发帖多图
 let selectedTopic = '';
 document.getElementById('composeImgBtn').addEventListener('click', () => {
   if (currentComposeType === 'post') {
@@ -22863,32 +23131,36 @@ document.getElementById('composeImgBtn').addEventListener('click', () => {
     document.getElementById('composeOtherImgInput').click();
   }
 });
-document.getElementById('composeImgInput').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const maxW = 1200;
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      pendingComposeImage = canvas.toDataURL('image/jpeg', 0.82);
-      document.getElementById('composeImgPreviewImg').src = pendingComposeImage;
-      document.getElementById('composeImgPreview').classList.remove('hidden');
-      document.getElementById('publishBtn').style.opacity = '1';
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
+document.getElementById('composeImgInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  for (const file of files) {
+    if (!file) continue;
+    const reader = new FileReader();
+    const dataUrl = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(file); });
+    const comp = await compressImageDataUrl(dataUrl, 1200, 0.82, 0.6);
+    pendingComposeImages.push(comp);
+  }
+  renderComposeImagesPreview();
+  document.getElementById('publishBtn').style.opacity = (document.getElementById('composeText').value.trim() || pendingComposeImages.length) ? '1' : '0.4';
   e.target.value = '';
 });
+function renderComposeImagesPreview() {
+  const prev = document.getElementById('composeImgPreview');
+  if (!prev) return;
+  if (pendingComposeImages.length === 0) { prev.classList.add('hidden'); prev.innerHTML = ''; return; }
+  prev.classList.remove('hidden');
+  prev.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + pendingComposeImages.map((img, idx) =>
+    '<div style="position:relative;"><img src="'+img+'" style="max-width:140px;max-height:140px;border-radius:8px;object-fit:cover;display:block;"><span onclick="removeComposeImage('+idx+')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;line-height:1;">×</span></div>'
+  ).join('') + '</div>';
+}
+function removeComposeImage(idx) {
+  pendingComposeImages.splice(idx, 1);
+  renderComposeImagesPreview();
+  document.getElementById('publishBtn').style.opacity = (document.getElementById('composeText').value.trim() || pendingComposeImages.length) ? '1' : '0.4';
+}
 document.getElementById('composeImgRemove').addEventListener('click', () => {
-  pendingComposeImage = null;
-  document.getElementById('composeImgPreview').classList.add('hidden');
+  pendingComposeImages = [];
+  renderComposeImagesPreview();
   const text = document.getElementById('composeText').value.trim();
   document.getElementById('publishBtn').style.opacity = text ? '1' : '0.4';
 });
@@ -23050,7 +23322,7 @@ function prefillComposeTags(tags) {
 }
 document.getElementById('composeText').addEventListener('input', (e) => {
   const btn = document.getElementById('publishBtn');
-  btn.style.opacity = (e.target.value.trim() || pendingComposeImage) ? '1' : '0.4';
+  btn.style.opacity = (e.target.value.trim() || pendingComposeImages.length) ? '1' : '0.4';
 });
 document.getElementById('publishBtn').addEventListener('click', () => {
   if (currentComposeType !== 'post') { publishComposeOther(); return; }
@@ -23065,7 +23337,7 @@ document.getElementById('publishBtn').addEventListener('click', () => {
     if (p) {
       const oldVisibility = p.visibility || (p.isPublic ? 'public' : 'private');
       p.content = text; p.circleId = circleId; p.topic = tags[0] || ''; p.tags = tags;
-      p.image = pendingComposeImage || p.image; p.isPublic = isPublic;
+      p.image = pendingComposeImages[0] || p.image; p.images = pendingComposeImages.length ? [...pendingComposeImages] : (p.images || []); p.isPublic = isPublic;
       p.visibility = composePostVisibility;
       p.visibleFriendIds = composePostVisibility === 'friends' ? [...composePostFriendIds] : [];
       savePosts();
@@ -23123,7 +23395,8 @@ document.getElementById('publishBtn').addEventListener('click', () => {
     avatar: getUserAvatar() || getUserName().charAt(0),
     time: formatTime(),
     content: text,
-    image: pendingComposeImage,
+    image: pendingComposeImages[0] || null,
+    images: [...pendingComposeImages],
     circleId: circleId,
     topic: tags[0] || '',
     tags: tags,
@@ -23163,7 +23436,7 @@ document.getElementById('publishBtn').addEventListener('click', () => {
   // 清除发布页图片预览
   const composeImgPreview = document.getElementById('composeImgPreview');
   if (composeImgPreview) composeImgPreview.classList.add('hidden');
-  pendingComposeImage = null;
+  pendingComposeImages = [];
   selectedTopics = [];
   showToast('发布成功');
   savePosts();
@@ -23243,7 +23516,7 @@ function exportAllData() {
     const pkg = {
       app: 'xingyu',
       type: 'full-backup',
-      version: 'v77.59',
+      version: 'v77.65',
       exportedAt: new Date().toISOString(),
       data: data
     };
@@ -26267,7 +26540,7 @@ function xySendQuickMsg() {
   const text = input ? input.value.trim() : '';
   if (!text) return;
   xyCloseModal();
-  xyState.chat.push({role:'user', content:text, time:Date.now()});
+  xyState.chat.push({role:'user', content:text, time:Date.now(), id:xyNewHistMsgId()});
   xySaveState();
   xyShowToast('发送中...', 2000);
   xyCallAI(text);
@@ -26302,7 +26575,7 @@ async function xyCallAI(userMsg) {
     const rawReply = data.choices?.[0]?.message?.content || '（AI没有返回内容）';
     // 解析并执行工具调用
     const { reply, actions } = xyParseAndExecuteTools(rawReply);
-    xyState.chat.push({role:'assistant', content:reply, time:Date.now()});
+    xyState.chat.push({role:'assistant', content:reply, time:Date.now(), id:xyNewHistMsgId()});
     xySaveState();
     // 如果聊天历史弹窗开着，刷新弹窗内容
     if (typeof xyRefreshChatHistoryModal === 'function') xyRefreshChatHistoryModal();
@@ -26564,17 +26837,22 @@ function xyShowToast(text, duration) {
 
 function xyOpenChatHistory() {
   xyLoadState();
+  xyHistMultiSelect = false;
+  xyHistSelectedIds = [];
+  xyHistEnsureMsgIds();
   const msgs = xyState.chat || [];
   const listHtml = msgs.length === 0
     ? '<div style="text-align:center;padding:40px 20px;color:var(--text-tertiary);font-size:14px;">暂无聊天记录</div>'
-    : msgs.map(m => '<div class="xy-chat-msg ' + (m.role==='user'?'user':'ai') + '"><div class="xy-chat-bubble">' + (m.content||'') + '</div></div>').join('');
+    : msgs.map(xyRenderHistMsg).join('');
   xyShowModal('聊天历史',
-    '<div class="xy-chat-list" id="xyHistList" style="max-height:55vh;">' + listHtml + '</div>' +
+    '<div id="xyHistToolbar"></div>' +
+    '<div class="xy-chat-list" id="xyHistList" style="max-height:45vh;">' + listHtml + '</div>' +
     '<div class="xy-chat-input-row">' +
       '<input class="xy-chat-input" id="xyHistInput" placeholder="继续聊..." onkeydown="if(event.key===\'Enter\')xySendHistMsg()">' +
       '<button class="xy-chat-send" id="xyHistSendBtn" onclick="if(xyGenBusy&&xyGenScene===\'assistant\'){xyStopGen();return;}xySendHistMsg()">➤</button>' +
     '</div>'
   );
+  xyRenderHistToolbar();
   setTimeout(() => {
     const list = document.getElementById('xyHistList');
     if (list) list.scrollTop = list.scrollHeight;
@@ -26583,21 +26861,164 @@ function xyOpenChatHistory() {
 function xyRefreshChatHistoryModal() {
   const list = document.getElementById('xyHistList');
   if (!list) return;
+  xyHistEnsureMsgIds();
   const msgs = xyState.chat || [];
   list.innerHTML = msgs.length === 0
     ? '<div style="text-align:center;padding:40px 20px;color:var(--text-tertiary);font-size:14px;">暂无聊天记录</div>'
-    : msgs.map(m => '<div class="xy-chat-msg ' + (m.role==='user'?'user':'ai') + '"><div class="xy-chat-bubble">' + (m.content||'') + '</div></div>').join('');
+    : msgs.map(xyRenderHistMsg).join('');
   list.scrollTop = list.scrollHeight;
+  xyRenderHistToolbar();
 }
 function xySendHistMsg() {
   const input = document.getElementById('xyHistInput');
   const text = input ? input.value.trim() : '';
   if (!text) return;
-  xyState.chat.push({role:'user', content:text, time:Date.now()});
+  xyState.chat.push({role:'user', content:text, time:Date.now(), id:xyNewHistMsgId()});
   xySaveState();
   if (input) input.value = '';
   xyRefreshChatHistoryModal();
   xyCallAI(text);
+}
+
+// ===== v77.61：待办助手会话消息管理（重新编辑/重说/单删/批量删除/重置）=====
+var xyHistMultiSelect = false;
+var xyHistSelectedIds = [];
+function xyNewHistMsgId() { return 'xyh_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,6); }
+function xyHistEnsureMsgIds() {
+  let changed = false;
+  (xyState.chat || []).forEach(m => { if (!m.id) { m.id = xyNewHistMsgId(); changed = true; } });
+  if (changed) xySaveState();
+}
+function xyRenderHistMsg(m) {
+  const isUser = m.role === 'user';
+  const id = m.id || '';
+  const esc = escapeHtml(m.content || '');
+  let actions = '';
+  if (!xyHistMultiSelect) {
+    const btn = (label, fn) => '<button class="xy-hist-act" onclick="' + fn + '">' + label + '</button>';
+    actions = '<div class="xy-hist-actions" style="' + (isUser ? 'justify-content:flex-end;' : '') + '">' +
+      (isUser ? btn('编辑', "xyEditHistMsg('" + id + "')") : btn('重说', "xyRegenHistMsg('" + id + "')")) +
+      btn('删除', "xyDeleteHistMsg('" + id + "')") +
+      '</div>';
+  }
+  const sel = xyHistMultiSelect && xyHistSelectedIds.indexOf(id) >= 0;
+  const cb = xyHistMultiSelect ? '<div class="xy-hist-cb' + (sel ? ' on' : '') + '" onclick="event.stopPropagation();xyToggleHistSelect(\'' + id + '\')">' + (sel ? '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" style="width:12px;height:12px;"><polyline points="20 6 9 17 4 12"/></svg>' : '') + '</div>' : '';
+  return '<div class="xy-chat-msg ' + (isUser ? 'user' : 'ai') + '" style="' + (sel ? 'opacity:0.55;' : '') + (xyHistMultiSelect ? 'justify-content:flex-start;' : '') + '">' +
+    cb +
+    '<div style="display:flex;flex-direction:column;max-width:75%;">' +
+      '<div class="xy-chat-bubble">' + esc + (m.edited ? ' <span style="font-size:11px;color:var(--text-tertiary);">已编辑</span>' : '') + '</div>' +
+      actions +
+    '</div>' +
+  '</div>';
+}
+function xyRenderHistToolbar() {
+  const bar = document.getElementById('xyHistToolbar');
+  if (!bar) return;
+  if (xyHistMultiSelect) {
+    bar.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;">' +
+      '<span style="flex:1;font-size:13px;color:var(--text-secondary);">已选 ' + xyHistSelectedIds.length + ' 条</span>' +
+      '<button class="xy-btn xy-btn-primary" style="padding:5px 12px;font-size:12px;" onclick="xyDeleteHistSelected()">确认删除</button>' +
+      '<button class="xy-btn xy-btn-secondary" style="padding:5px 12px;font-size:12px;" onclick="xyExitHistMultiSelect()">取消</button>' +
+    '</div>';
+  } else {
+    bar.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;">' +
+      '<span style="flex:1;font-size:13px;color:var(--text-tertiary);">' + (xyState.chat || []).length + ' 条记录</span>' +
+      '<button class="xy-btn xy-btn-secondary" style="padding:5px 12px;font-size:12px;" onclick="xyEnterHistMultiSelect()">批量删除</button>' +
+      '<button class="xy-btn xy-btn-secondary" style="padding:5px 12px;font-size:12px;" onclick="xyResetHistChat()">重置对话</button>' +
+    '</div>';
+  }
+}
+function xyEnterHistMultiSelect() {
+  xyHistMultiSelect = true;
+  xyHistSelectedIds = [];
+  xyRenderHistToolbar();
+  xyRefreshChatHistoryModal();
+}
+function xyExitHistMultiSelect() {
+  xyHistMultiSelect = false;
+  xyHistSelectedIds = [];
+  xyRenderHistToolbar();
+  xyRefreshChatHistoryModal();
+}
+function xyToggleHistSelect(id) {
+  const idx = xyHistSelectedIds.indexOf(id);
+  if (idx >= 0) xyHistSelectedIds.splice(idx, 1);
+  else xyHistSelectedIds.push(id);
+  xyRenderHistToolbar();
+  xyRefreshChatHistoryModal();
+}
+function xyDeleteHistSelected() {
+  if (xyHistSelectedIds.length === 0) return;
+  if (!confirm('确定删除选中的 ' + xyHistSelectedIds.length + ' 条消息？')) return;
+  xyState.chat = (xyState.chat || []).filter(m => xyHistSelectedIds.indexOf(m.id) < 0);
+  xySaveState();
+  xyExitHistMultiSelect();
+  xyShowToast('已删除 ' + xyHistSelectedIds.length + ' 条消息', 2000);
+}
+function xyDeleteHistMsg(id) {
+  if (!confirm('删除这条消息？')) return;
+  xyState.chat = (xyState.chat || []).filter(m => m.id !== id);
+  xySaveState();
+  xyRefreshChatHistoryModal();
+}
+function xyResetHistChat() {
+  if (!confirm('确定清空全部待办助手聊天记录？此操作不可恢复')) return;
+  xyState.chat = [];
+  xyHistSelectedIds = [];
+  xyHistMultiSelect = false;
+  xySaveState();
+  xyRefreshChatHistoryModal();
+  xyShowToast('会话已重置', 2000);
+}
+// 重新编辑（用户消息）：截断到该条→替换文本→重新生成
+var _xyEditHistCb = null;
+function xyEditHistMsg(id) {
+  const msgs = xyState.chat || [];
+  const m = msgs.find(x => x.id === id);
+  if (!m || m.role !== 'user') return;
+  _xyEditHistCb = function(newText) {
+    const msgs2 = xyState.chat || [];
+    const i2 = msgs2.findIndex(x => x.id === id);
+    if (i2 < 0) return;
+    xyState.chat = msgs2.slice(0, i2 + 1);
+    xyState.chat[i2] = Object.assign({}, xyState.chat[i2], { content: newText, time: Date.now(), edited: true });
+    xySaveState();
+    xyRefreshChatHistoryModal();
+    xyCallAI(newText);
+  };
+  xyShowModal('重新编辑',
+    '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5;">编辑这条消息，保存后将<b>从这句话重新开启对话</b>（之后的消息会被移除，AI将基于新内容重新回复）</div>' +
+    '<textarea id="xyEditHistInput" rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:14px;font-family:inherit;resize:none;outline:none;line-height:1.5;">' + escapeHtml(m.content || '') + '</textarea>',
+    [
+      {label:'取消', class:'xy-btn-secondary', action:'xyCloseModal()'},
+      {label:'重新发送', class:'xy-btn-primary', action:'xyConfirmEditHist()'}
+    ]
+  );
+  setTimeout(function(){ const el = document.getElementById('xyEditHistInput'); if (el) el.focus(); }, 150);
+}
+function xyConfirmEditHist() {
+  const el = document.getElementById('xyEditHistInput');
+  const newText = (el && el.value.trim()) || '';
+  xyCloseModal();
+  if (!newText) { xyShowToast('内容不能为空', 2500); return; }
+  if (_xyEditHistCb) { const cb = _xyEditHistCb; _xyEditHistCb = null; cb(newText); }
+}
+// 重说（AI消息）：删除该条及之后所有，基于前面的用户消息重新生成
+function xyRegenHistMsg(id) {
+  const msgs = xyState.chat || [];
+  const idx = msgs.findIndex(m => m.id === id);
+  if (idx < 0) return;
+  const m = msgs[idx];
+  if (m.role !== 'assistant') return;
+  let lastUser = null;
+  for (let i = idx - 1; i >= 0; i--) {
+    if (msgs[i].role === 'user') { lastUser = msgs[i].content; break; }
+  }
+  if (lastUser === null) { xyShowToast('前面没有可重说的对话', 2500); return; }
+  xyState.chat = msgs.slice(0, idx);
+  xySaveState();
+  xyRefreshChatHistoryModal();
+  xyCallAI(lastUser);
 }
 
 // ===== 今日运势（本地随机，每日重置） =====
